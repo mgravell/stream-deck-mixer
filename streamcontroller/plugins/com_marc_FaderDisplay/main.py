@@ -145,9 +145,11 @@ class FaderDisplay(PluginBase):
         # line per change; an empty line means no player is available.
         while True:
             try:
+                # cwd="/": flatpak-spawn --host replays the caller's cwd on the host,
+                # and the sandbox's /app/... paths don't exist there
                 proc = subprocess.Popen(
                     ["flatpak-spawn", "--host", "playerctl", "--follow", "status"],
-                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, cwd="/",
                 )
                 for line in proc.stdout:
                     status = line.strip() or None

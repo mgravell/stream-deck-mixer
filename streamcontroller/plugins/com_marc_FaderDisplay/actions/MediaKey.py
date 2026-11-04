@@ -2,7 +2,9 @@ import subprocess
 
 from PIL import Image, ImageDraw
 
+from src.backend.DeckManagement.InputIdentifier import Input
 from src.backend.PluginManager.ActionCore import ActionCore
+from src.backend.PluginManager.EventAssigner import EventAssigner
 
 
 class MediaKey(ActionCore):
@@ -22,6 +24,8 @@ class MediaKey(ActionCore):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.has_configuration = False
+        # the core does not call this itself; actions register their own assigners
+        self.create_event_assigners()
 
     def on_ready(self):
         self.plugin_base.add_media_key(self)
@@ -36,13 +40,23 @@ class MediaKey(ActionCore):
     def on_removed_from_cache(self):
         self.plugin_base.remove_media_key(self)
 
-    def on_key_down(self):
+    def create_event_assigners(self):
+        self.add_event_assigner(EventAssigner(
+            id="media-key",
+            ui_label="Media Key",
+            default_events=[Input.Key.Events.DOWN],
+            callback=self._on_press,
+        ))
+
+    def _on_press(self, event):
         command = self.get_settings().get("media-command")
         if command not in self.COMMANDS:
             return
+        # cwd="/": flatpak-spawn --host replays the caller's cwd on the host,
+        # and the sandbox's /app/... paths don't exist there
         subprocess.Popen(
             ["flatpak-spawn", "--host", "playerctl", command],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd="/",
         )
 
     def render(self):
