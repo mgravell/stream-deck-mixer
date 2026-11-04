@@ -121,6 +121,14 @@ the play/pause glyph on state changes. **Host dependency: `playerctl`**
   active. Plugin *code* changes do need a quit/relaunch.
 - **Testing without touching the deck**: `EmulateInput "press" <serial> <page> "x,y"`
   over DBus fires the full action pipeline; coordinates are `"col,row"` from top-left.
+- **Key presses reach actions via `EventAssigner`s, and the core never calls
+  `create_event_assigners()`** — that's a plugin convention (AudioControl calls it from
+  its own base `__init__`). Register assigners from your action's `__init__`
+  (`add_event_assigner` with `default_events=[Input.Key.Events.DOWN]`); there is no
+  `on_key_down` hook and a missing assigner fails silently.
+- **`flatpak-spawn --host` replays the sandbox's cwd on the host**, and the app runs
+  from `/app/bin/StreamController`, which doesn't exist there — every spawn dies with
+  "Failed to change to directory". Always pass `cwd="/"` to `subprocess`.
 - The deck's USB can be reset in software if it ever wedges:
   `python3 -c "import fcntl,os; fd=os.open('/dev/bus/usb/BUS/DEV', os.O_WRONLY); fcntl.ioctl(fd, 21780, 0)"`
   (find BUS/DEV via `lsusb | grep 0fd9`; works because systemd grants the console user
