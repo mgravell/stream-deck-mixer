@@ -591,6 +591,66 @@
                     "image-control-action": 1
                 }
             }
+        },
+        "3x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "previous"
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "3x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "play-pause"
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "3x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "next"
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
         }
     }
 }

@@ -13,6 +13,9 @@ pactl list sinks short | grep -E 'media_channel|chat_channel|game_channel' \
   && echo "    virtual sinks up" \
   || { echo "    ERROR: virtual sinks missing"; exit 1; }
 
+command -v playerctl >/dev/null \
+  || echo "    WARNING: playerctl not installed (sudo apt install playerctl) - media keys won't work"
+
 echo "==> StreamController (Flatpak)"
 flatpak info com.core447.StreamController >/dev/null 2>&1 \
   || flatpak install -y flathub com.core447.StreamController

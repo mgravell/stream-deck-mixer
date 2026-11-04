@@ -7,6 +7,7 @@ whenever a watched sink's volume or mute state changes, every registered
 Segment action re-renders its slice of the fader.
 """
 
+import subprocess
 import threading
 import time
 
@@ -19,6 +20,7 @@ from src.backend.PluginManager.ActionInputSupport import ActionInputSupport
 from src.backend.DeckManagement.InputIdentifier import Input
 
 from .actions.Segment import Segment
+from .actions.MediaKey import MediaKey
 
 
 class FaderDisplay(PluginBase):
@@ -26,8 +28,10 @@ class FaderDisplay(PluginBase):
         super().__init__()
 
         self._segments = []
+        self._media_keys = []
         self._lock = threading.Lock()
         self.sink_state: dict[str, tuple[int, bool]] = {}  # name -> (volume %, muted)
+        self.media_status: str | None = None  # "Playing"/"Paused"/"Stopped", None = no player
 
         self.segment_holder = ActionHolder(
             plugin_base=self,
@@ -42,9 +46,23 @@ class FaderDisplay(PluginBase):
         )
         self.add_action_holder(self.segment_holder)
 
+        self.media_key_holder = ActionHolder(
+            plugin_base=self,
+            action_base=MediaKey,
+            action_id_suffix="MediaKey",
+            action_name="Media Key",
+            action_support={
+                Input.Key: ActionInputSupport.SUPPORTED,
+                Input.Dial: ActionInputSupport.UNSUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNSUPPORTED,
+            },
+        )
+        self.add_action_holder(self.media_key_holder)
+
         self.register()
 
         threading.Thread(target=self._monitor, daemon=True, name="fader-display-pulse").start()
+        threading.Thread(target=self._media_monitor, daemon=True, name="fader-display-media").start()
 
     # Segment registry
 
@@ -60,6 +78,16 @@ class FaderDisplay(PluginBase):
 
     def get_sink_state(self, name: str):
         return self.sink_state.get(name)
+
+    def add_media_key(self, key) -> None:
+        with self._lock:
+            if key not in self._media_keys:
+                self._media_keys.append(key)
+
+    def remove_media_key(self, key) -> None:
+        with self._lock:
+            if key in self._media_keys:
+                self._media_keys.remove(key)
 
     # Pulse monitoring
 
@@ -100,3 +128,36 @@ class FaderDisplay(PluginBase):
             except Exception as e:
                 log.warning(f"FaderDisplay: pulse monitor reconnecting: {e}")
                 time.sleep(3)
+
+    # Media (MPRIS) monitoring
+
+    def _notify_media(self) -> None:
+        with self._lock:
+            keys = list(self._media_keys)
+        for key in keys:
+            try:
+                key.render()
+            except Exception as e:
+                log.error(f"FaderDisplay: media key render failed: {e}")
+
+    def _media_monitor(self) -> None:
+        # playerctl --follow prints the current status immediately, then one
+        # line per change; an empty line means no player is available.
+        while True:
+            try:
+                proc = subprocess.Popen(
+                    ["flatpak-spawn", "--host", "playerctl", "--follow", "status"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                )
+                for line in proc.stdout:
+                    status = line.strip() or None
+                    if status != self.media_status:
+                        self.media_status = status
+                        self._notify_media()
+                proc.wait()
+            except Exception as e:
+                log.warning(f"FaderDisplay: media monitor restarting: {e}")
+            if self.media_status is not None:
+                self.media_status = None
+                self._notify_media()
+            time.sleep(5)

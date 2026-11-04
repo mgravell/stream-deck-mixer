@@ -78,8 +78,11 @@ Deliberate choices, commented in the conf:
 
 ### Stream Deck page (`Mixer.json`)
 
-Columns left→right: **Media (red) / Chat (green) / Game (blue) / spare / Master (grey)**.
-Rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
+Columns left→right: **Media (red) / Chat (green) / Game (blue) / media keys / Master (orange)**.
+Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
+The fourth column is media transport, top→bottom: **previous (⏮) / play-pause (⏯) / next (⏭)**
+— these drive MPRIS (same as keyboard media keys) and the play/pause glyph tracks the live
+playback state; glyphs dim grey when no media player is running.
 Every key carries two actions: `com_gapls_AudioControl::AdjustVolume|Mute` (index 0,
 the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals), with
 `image-control-action: 1` and `label-control-actions: [1,1,1]`.
@@ -90,10 +93,15 @@ the fader), `color`, `glyph` (`up`/`down`/`mute`/`none`), `text`
 
 ### FaderDisplay plugin
 
-~150 lines of Python. One daemon thread holds a `pulsectl` connection listening for
-sink events; on any volume/mute change it re-renders every registered Segment
-(PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController labels, so they
-render with the app's font stack on top of the bitmap.
+~200 lines of Python, two actions. **Segment**: one daemon thread holds a `pulsectl`
+connection listening for sink events; on any volume/mute change it re-renders every
+registered Segment (PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController
+labels, so they render with the app's font stack on top of the bitmap. **MediaKey**:
+presses run `flatpak-spawn --host playerctl <play-pause|previous|next>` (the sandbox
+can't talk to MPRIS bus names directly, but it may talk to the Flatpak portal, so host
+commands work); a second daemon thread follows `playerctl --follow status` to repaint
+the play/pause glyph on state changes. **Host dependency: `playerctl`**
+(`sudo apt install playerctl`).
 
 ## Hard-won gotchas (read before debugging)
 
