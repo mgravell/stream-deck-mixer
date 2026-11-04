@@ -486,9 +486,9 @@
                                 "range-low": 0.6667,
                                 "range-high": 1.0,
                                 "color": [
-                                    190,
-                                    190,
-                                    190
+                                    235,
+                                    145,
+                                    35
                                 ],
                                 "glyph": "up",
                                 "text": "none",
@@ -530,9 +530,9 @@
                                 "range-low": 0.3333,
                                 "range-high": 0.6667,
                                 "color": [
-                                    190,
-                                    190,
-                                    190
+                                    235,
+                                    145,
+                                    35
                                 ],
                                 "glyph": "down",
                                 "text": "volume",
@@ -572,9 +572,9 @@
                                 "range-low": 0.0,
                                 "range-high": 0.3333,
                                 "color": [
-                                    190,
-                                    190,
-                                    190
+                                    235,
+                                    145,
+                                    35
                                 ],
                                 "glyph": "mute",
                                 "text": "label",

@@ -84,26 +84,51 @@ class Segment(ActionCore):
         self.set_top_label("")
         self.set_center_label("")
 
-    GLYPH = (240, 240, 240, 235)
-    MUTE_X = (255, 80, 80, 255)
+    GLYPH = (240, 240, 240, 255)
+    MUTE_X = (255, 70, 60, 255)
+    OUTLINE = (12, 12, 12, 255)
+
+    @staticmethod
+    def _stamp(shape_fn, outline):
+        """Draw shape_fn with a dark outline so it reads on any fill color."""
+        for dx, dy in ((-2, 0), (2, 0), (0, -2), (0, 2), (-2, -2), (2, -2), (-2, 2), (2, 2)):
+            shape_fn(dx, dy, outline)
+        shape_fn(0, 0, None)  # None -> caller uses its real color
 
     def _draw_glyph(self, draw: ImageDraw.ImageDraw, glyph: str, muted: bool):
         # glyphs live in the top half of the 96x96 canvas, centered on (48, 24)
         cx, cy = 48, 24
         if glyph == "up":
-            draw.polygon([(cx - 15, cy + 8), (cx + 15, cy + 8), (cx, cy - 10)], fill=self.GLYPH)
+            def shape(dx, dy, col):
+                draw.polygon([(cx - 15 + dx, cy + 8 + dy), (cx + 15 + dx, cy + 8 + dy),
+                              (cx + dx, cy - 10 + dy)], fill=col or self.GLYPH)
+            self._stamp(shape, self.OUTLINE)
         elif glyph == "down":
-            draw.polygon([(cx - 15, cy - 8), (cx + 15, cy - 8), (cx, cy + 10)], fill=self.GLYPH)
+            def shape(dx, dy, col):
+                draw.polygon([(cx - 15 + dx, cy - 8 + dy), (cx + 15 + dx, cy - 8 + dy),
+                              (cx + dx, cy + 10 + dy)], fill=col or self.GLYPH)
+            self._stamp(shape, self.OUTLINE)
         elif glyph == "mute":
-            # speaker: box + cone pointing right
-            draw.polygon(
-                [(cx - 16, cy - 5), (cx - 8, cy - 5), (cx + 2, cy - 13),
-                 (cx + 2, cy + 13), (cx - 8, cy + 5), (cx - 16, cy + 5)],
-                fill=self.GLYPH,
-            )
+            # speaker: box + cone pointing right; red when muted
+            body = self.MUTE_X if muted else self.GLYPH
+
+            def speaker(dx, dy, col):
+                draw.polygon(
+                    [(cx - 16 + dx, cy - 5 + dy), (cx - 8 + dx, cy - 5 + dy), (cx + 2 + dx, cy - 13 + dy),
+                     (cx + 2 + dx, cy + 13 + dy), (cx - 8 + dx, cy + 5 + dy), (cx - 16 + dx, cy + 5 + dy)],
+                    fill=col or body,
+                )
+            self._stamp(speaker, self.OUTLINE)
+
             if muted:
-                draw.line([(cx + 7, cy - 8), (cx + 17, cy + 8)], fill=self.MUTE_X, width=4)
-                draw.line([(cx + 17, cy - 8), (cx + 7, cy + 8)], fill=self.MUTE_X, width=4)
+                def cross(dx, dy, col):
+                    draw.line([(cx + 7 + dx, cy - 8 + dy), (cx + 18 + dx, cy + 8 + dy)],
+                              fill=col or self.MUTE_X, width=4)
+                    draw.line([(cx + 18 + dx, cy - 8 + dy), (cx + 7 + dx, cy + 8 + dy)],
+                              fill=col or self.MUTE_X, width=4)
+                self._stamp(cross, self.OUTLINE)
             else:
-                # sound waves
-                draw.arc([cx + 4, cy - 10, cx + 20, cy + 10], -55, 55, fill=self.GLYPH, width=3)
+                def waves(dx, dy, col):
+                    draw.arc([cx + 4 + dx, cy - 10 + dy, cx + 20 + dx, cy + 10 + dy],
+                             -55, 55, fill=col or self.GLYPH, width=3)
+                self._stamp(waves, self.OUTLINE)
