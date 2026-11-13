@@ -23,7 +23,7 @@ flatpak info com.core447.StreamController >/dev/null 2>&1 \
 DATA=~/.var/app/com.core447.StreamController/data
 mkdir -p "$DATA/pages" "$DATA/plugins" "$DATA/settings"
 
-echo "==> Mixer page + FaderDisplay plugin"
+echo "==> Deck pages + FaderDisplay plugin"
 cp streamcontroller/pages/*.json "$DATA/pages/"
 rm -rf "$DATA/plugins/com_marc_FaderDisplay"
 cp -r streamcontroller/plugins/com_marc_FaderDisplay "$DATA/plugins/"

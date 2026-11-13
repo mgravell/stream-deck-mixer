@@ -53,7 +53,7 @@ when channels, devices or apps change. One utility key cycles the pages.
 | Path | Installs to |
 |---|---|
 | `pipewire/10-virtual-channels.conf` | `~/.config/pipewire/pipewire.conf.d/` |
-| `streamcontroller/pages/Mixer.json` | `~/.var/app/com.core447.StreamController/data/pages/` |
+| `streamcontroller/pages/*.json` (Output/Apps/Input) | `~/.var/app/com.core447.StreamController/data/pages/` |
 | `streamcontroller/settings/pages.json` | `~/.var/app/com.core447.StreamController/data/settings/` (maps deck serial → default page) |
 | `streamcontroller/settings/fader-display.json` | same place (optional: channel order/labels/colors; delete it for automatic) |
 | `streamcontroller/plugins/com_marc_FaderDisplay/` | `~/.var/app/com.core447.StreamController/data/plugins/` |
@@ -69,10 +69,10 @@ tab) — WirePlumber remembers it from then on.
 
 ### Hardware assumptions (edit if they change)
 
-- **G3 sink name** (appears in both the PipeWire conf and `Mixer.json`):
+- **G3 sink name** (only in the PipeWire conf — the deck pages discover everything):
   `alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo`
   — if the G3 is replaced, get the new name from `pactl list sinks short` and
-  search/replace in both files.
+  search/replace in `pipewire/10-virtual-channels.conf`.
 - **Deck serial** `A00SA5182J7QBL` in `settings/pages.json` — a different deck needs
   its serial swapped in (shown in StreamController, or in its log on connect).
 - No udev rule is needed for the Stream Deck: modern systemd ships uaccess rules for
