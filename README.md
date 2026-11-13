@@ -3,10 +3,17 @@
 A software replacement for a Roland Bridge Cast: multiple virtual audio channels
 ("Media", "Chat", "Game") that mix into a physical output (Sound Blaster G3), with a
 Stream Deck MK.2 as the physical control surface — colored per-channel fader columns
-with volume up/down/mute keys, live level display, and 150% overdrive.
+with volume up/down/mute keys, live stereo VU meters with peak-hold, 150% overdrive,
+and MPRIS media-transport keys.
 
 Built on Pop!_OS with PipeWire 1.6.8 / WirePlumber 0.5.12 and
 [StreamController](https://github.com/StreamController/StreamController) 1.5.0-beta.16.
+
+> This is my personal setup, published as-is in case it's useful — the sink names, deck
+> serial, colors and layout are mine (see [Hardware assumptions](#hardware-assumptions-edit-if-they-change)),
+> but every piece is plain config/Python and straightforward to adapt. The
+> [gotchas section](#hard-won-gotchas-read-before-debugging) alone may save you hours
+> if you're building anything similar.
 
 ## Architecture
 
@@ -83,9 +90,11 @@ Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speak
 The fourth column is media transport, top→bottom: **previous (⏮) / play-pause (⏯) / next (⏭)**
 — these drive MPRIS (same as keyboard media keys) and the play/pause glyph tracks the live
 playback state; glyphs dim grey when no media player is running.
-Every key carries two actions: `com_gapls_AudioControl::AdjustVolume|Mute` (index 0,
-the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals), with
-`image-control-action: 1` and `label-control-actions: [1,1,1]`.
+Every fader key carries two actions: `com_gapls_AudioControl::AdjustVolume|Mute`
+(index 0, the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals),
+with `image-control-action: 1` and `label-control-actions: [1,1,1]`. Media keys carry a
+single `com_marc_FaderDisplay::MediaKey` action with a `media-command` setting
+(`play-pause`/`previous`/`next`).
 
 Per-key `Segment` settings: `pulse-name`, `range-low`/`range-high` (this key's slice of
 the fader), `color`, `glyph` (`up`/`down`/`mute`/`none`), `text`
@@ -105,9 +114,9 @@ when idle).
 
 ### FaderDisplay plugin
 
-~200 lines of Python, two actions. **Segment**: one daemon thread holds a `pulsectl`
-connection listening for sink events; on any volume/mute change it re-renders every
-registered Segment (PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController
+A few hundred lines of Python, two action types. **Segment**: one daemon thread holds a
+`pulsectl` connection listening for sink events; on any volume/mute change it re-renders
+every registered Segment (PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController
 labels, so they render with the app's font stack on top of the bitmap. **MediaKey**:
 presses run `flatpak-spawn --host playerctl <play-pause|previous|next>` (the sandbox
 can't talk to MPRIS bus names directly, but it may talk to the Flatpak portal, so host
@@ -158,3 +167,7 @@ whose quantized meter pixels changed.
   `python3 -c "import fcntl,os; fd=os.open('/dev/bus/usb/BUS/DEV', os.O_WRONLY); fcntl.ioctl(fd, 21780, 0)"`
   (find BUS/DEV via `lsusb | grep 0fd9`; works because systemd grants the console user
   access to Elgato devices).
+
+## License
+
+[MIT](LICENSE).

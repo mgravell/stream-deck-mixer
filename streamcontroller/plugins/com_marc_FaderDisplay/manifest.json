@@ -1,6 +1,6 @@
 {
     "id": "com_marc_FaderDisplay",
-    "github": "https://github.com/local/FaderDisplay",
+    "github": "https://github.com/mgravell/stream-deck-mixer",
     "name": "Fader Display",
     "version": "1.0.0",
     "minimum-app-version": "1.5.0",
