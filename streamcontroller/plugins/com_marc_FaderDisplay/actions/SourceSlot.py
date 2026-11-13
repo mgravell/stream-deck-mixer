@@ -52,6 +52,7 @@ class SourceSlot(AppSlot):
             "meter": self.plugin_base.get_meter_display(source["meter_target"]),
             "label": label if len(label) <= 9 else label[:8] + "…",
             "icon": None,
+            "accent": source.get("accent", False),
         }
 
     def _on_press(self, event):

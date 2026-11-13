@@ -305,9 +305,11 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "id": "com_marc_FaderDisplay::PageSwitch",
                             "settings": {
-                                "media-command": "play-pause"
+                                "page": "Channels",
+                                "style": "apps",
+                                "label": "Apps"
                             }
                         }
                     ],
@@ -325,11 +327,8 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::PageSwitch",
-                            "settings": {
-                                "page": "Input",
-                                "style": "input"
-                            }
+                            "id": "com_marc_FaderDisplay::AppPager",
+                            "settings": {}
                         }
                     ],
                     "label-control-actions": [
@@ -346,8 +345,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::AppPager",
-                            "settings": {}
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "play-pause"
+                            }
                         }
                     ],
                     "label-control-actions": [

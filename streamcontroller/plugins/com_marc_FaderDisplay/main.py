@@ -30,7 +30,8 @@ from .actions.MediaKey import MediaKey
 from .actions.AppSlot import AppSlot
 from .actions.ChannelSlot import ChannelSlot
 from .actions.SourceSlot import SourceSlot
-from .actions.Nav import PageSwitch, AppPager, ChannelPager, SourcePager
+from .actions.DeviceSlot import DeviceSlot
+from .actions.Nav import PageSwitch, AppPager, ChannelPager, SourcePager, DevicePager
 
 
 def _amp_to_frac(amp: float) -> float:
@@ -77,9 +78,8 @@ class FaderDisplay(PluginBase):
         self.meter_display: dict[str, tuple] = {}
         self._meter_display_started = False
 
-        # discovered-channel registry (Mixer page)
+        # discovered-channel registry (Channels page: virtual streams only)
         self.channels: list[dict] = []   # ordered; {"name", "label", "color", "meter_target"}
-        self.master_channel: dict | None = None
         self.channel_offset = 0
         self._channel_slots: list = []
         self._channel_pagers: list = []
@@ -87,7 +87,17 @@ class FaderDisplay(PluginBase):
         self._config: dict = {}
         self._config_mtime: float | None = -1.0
 
-        # discovered-input registry (Input page): non-monitor sources
+        # discovered output-device registry (Outputs page): every sink that is
+        # not a channel; the default device comes first and is accented
+        self.sink_devices: list[dict] = []
+        self.device_offset = 0
+        self._device_slots: list = []
+        self._device_pagers: list = []
+        self._device_meter_targets: set[str] = set()
+        self.default_sink: str | None = None
+        self.default_source: str | None = None
+
+        # discovered-input registry (Inputs page): non-monitor sources
         self.source_state: dict[str, tuple[int, bool]] = {}  # name -> (volume %, muted)
         self.sources: list[dict] = []    # ordered; {"name", "label", "color", "meter_target"}
         self.source_offset = 0
@@ -121,10 +131,12 @@ class FaderDisplay(PluginBase):
         for action_base, suffix, name in ((AppSlot, "AppSlot", "App Slot"),
                                           (ChannelSlot, "ChannelSlot", "Channel Slot"),
                                           (SourceSlot, "SourceSlot", "Input Slot"),
+                                          (DeviceSlot, "DeviceSlot", "Output Slot"),
                                           (PageSwitch, "PageSwitch", "Switch Page"),
                                           (AppPager, "AppPager", "Next Apps"),
                                           (ChannelPager, "ChannelPager", "Next Channels"),
-                                          (SourcePager, "SourcePager", "Next Inputs")):
+                                          (SourcePager, "SourcePager", "Next Inputs"),
+                                          (DevicePager, "DevicePager", "Next Outputs")):
             self.add_action_holder(ActionHolder(
                 plugin_base=self,
                 action_base=action_base,
@@ -370,18 +382,23 @@ class FaderDisplay(PluginBase):
     def _refresh(self, pulse) -> tuple:
         """Returns (sinks_changed, apps_changed, channels_changed, sources_changed)."""
         state = {}
+        sink_descriptions = {}
         for sink in pulse.sink_list():
             volume = round(pulse.volume_get_all_chans(sink) * 100)
             state[sink.name] = (volume, bool(sink.mute))
+            sink_descriptions[sink.name] = sink.description
         sinks_changed = state != self.sink_state
         if sinks_changed:
             self.sink_state = state
 
         try:
-            default_sink = pulse.server_info().default_sink_name
+            info = pulse.server_info()
+            self.default_sink = info.default_sink_name
+            self.default_source = info.default_source_name
         except Exception:
-            default_sink = None
-        channels_changed = self._refresh_channels(default_sink)
+            pass
+        channels_changed = self._refresh_channels()
+        devices_changed = self._refresh_devices(sink_descriptions)
 
         src_state = {}
         descriptions = {}
@@ -425,7 +442,7 @@ class FaderDisplay(PluginBase):
                 self.app_offset = 0
             self._app_meter_ids = {str(i) for g in apps for i in g["inputs"]}
             self._sync_meters()
-        return sinks_changed, apps_changed, channels_changed, sources_changed
+        return sinks_changed, apps_changed, channels_changed, sources_changed, devices_changed
 
     # Input (source) discovery - mirrors channel discovery; the config file's
     # "inputs" list pins order/labels/colors, anything else is appended
@@ -434,8 +451,14 @@ class FaderDisplay(PluginBase):
     def _refresh_sources(self, descriptions: dict) -> bool:
         config = self._load_config()
         names = set(self.source_state)
+        default = self.default_source if self.default_source in names else None
         sources = []
         used = set()
+        entries = {e.get("match"): e for e in config.get("inputs", []) if e.get("match")}
+        if default:  # default input device first, accented
+            used.add(default)
+            sources.append(self._make_source(default, entries.get(default, {}),
+                                             descriptions, accent=True))
         for entry in config.get("inputs", []):
             name = entry.get("match")
             if name in names and name not in used:
@@ -454,11 +477,12 @@ class FaderDisplay(PluginBase):
         return changed
 
     @staticmethod
-    def _make_source(name: str, entry: dict, descriptions: dict) -> dict:
+    def _make_source(name: str, entry: dict, descriptions: dict,
+                     accent: bool = False) -> dict:
         label = entry.get("label") or descriptions.get(name) or name
         color = entry.get("color") or AppSlot.app_color(name)
         return {"name": name, "label": label, "color": tuple(color)[:3],
-                "meter_target": name}
+                "meter_target": name, "accent": accent}
 
     def get_source(self, slot: int):
         index = self.source_offset + slot
@@ -530,7 +554,7 @@ class FaderDisplay(PluginBase):
             if pager in self._source_pagers:
                 self._source_pagers.remove(pager)
 
-    # Channel discovery (Mixer page)
+    # Channel discovery (Channels page)
     #
     # Channels are sinks whose names end in "_channel", plus anything pinned in
     # the optional config file, which also sets order, labels and colors:
@@ -560,7 +584,7 @@ class FaderDisplay(PluginBase):
                     log.warning(f"FaderDisplay: bad config {path}: {e}")
         return self._config
 
-    def _refresh_channels(self, default_sink: str | None) -> bool:
+    def _refresh_channels(self) -> bool:
         config = self._load_config()
         sink_names = set(self.sink_state)
         channels = []
@@ -575,27 +599,116 @@ class FaderDisplay(PluginBase):
                 used.add(name)
                 channels.append(self._make_channel(name, {}))
 
-        master = None
-        if default_sink and default_sink in sink_names:
-            master_cfg = config.get("master", {})
-            master = {
-                "name": default_sink,
-                "label": master_cfg.get("label", "Master"),
-                "color": tuple(master_cfg.get("color", self.MASTER_COLOR))[:3],
-                "meter_target": f"{default_sink}.monitor",
-            }
-
-        changed = channels != self.channels or master != self.master_channel
+        changed = channels != self.channels
         if changed:
             self.channels = channels
-            self.master_channel = master
             if self.channel_offset >= len(channels):
                 self.channel_offset = 0
             self._channel_meter_targets = {c["meter_target"] for c in channels}
-            if master:
-                self._channel_meter_targets.add(master["meter_target"])
             self._sync_meters()
         return changed
+
+    # Output-device discovery (Outputs page): every sink that is not a channel.
+    # The default device is listed first and drawn with an accent ring; the
+    # config's "master" entry (label/color) applies to whichever device is
+    # default, and an "outputs" list pins order/labels/colors for the rest.
+    # Only the default device is metered: tapping a sink's monitor keeps the
+    # device awake, so metering every output would stop them all suspending.
+
+    def _refresh_devices(self, descriptions: dict) -> bool:
+        config = self._load_config()
+        channel_names = {c["name"] for c in self.channels}
+        names = set(self.sink_state) - channel_names
+        default = self.default_sink if self.default_sink in names else None
+
+        devices = []
+        used = set()
+
+        def add(name: str, entry: dict) -> None:
+            used.add(name)
+            is_default = name == default
+            master_cfg = config.get("master", {}) if is_default else {}
+            label = (master_cfg.get("label") or entry.get("label")
+                     or descriptions.get(name) or name)
+            color = master_cfg.get("color") or entry.get("color") or self.MASTER_COLOR \
+                if is_default else (entry.get("color") or AppSlot.app_color(name))
+            devices.append({
+                "name": name, "label": label, "color": tuple(color)[:3],
+                "meter_target": f"{name}.monitor" if is_default else None,
+                "accent": is_default,
+            })
+
+        entries = {e.get("match"): e for e in config.get("outputs", []) if e.get("match")}
+        if default:
+            add(default, entries.get(default, {}))
+        for entry in config.get("outputs", []):
+            name = entry.get("match")
+            if name in names and name not in used:
+                add(name, entry)
+        for name in sorted(names - used):
+            add(name, {})
+
+        changed = devices != self.sink_devices
+        if changed:
+            self.sink_devices = devices
+            if self.device_offset >= len(devices):
+                self.device_offset = 0
+            self._device_meter_targets = {d["meter_target"] for d in devices
+                                          if d["meter_target"]}
+            self._sync_meters()
+        return changed
+
+    def get_device(self, slot: int):
+        index = self.device_offset + slot
+        return self.sink_devices[index] if 0 <= index < len(self.sink_devices) else None
+
+    def get_master_channel(self):
+        """The default output device's entry (kept for custom pages)."""
+        for device in self.sink_devices:
+            if device["accent"]:
+                return device
+        return None
+
+    def device_count(self) -> int:
+        return len(self.sink_devices)
+
+    def advance_device_page(self) -> None:
+        if len(self.sink_devices) > 4:
+            self.device_offset += 4
+            if self.device_offset >= len(self.sink_devices):
+                self.device_offset = 0
+        else:
+            self.device_offset = 0
+        self._notify_devices()
+
+    def _notify_devices(self) -> None:
+        with self._lock:
+            targets = list(self._device_slots) + list(self._device_pagers)
+        for target in targets:
+            try:
+                target.render()
+            except Exception as e:
+                log.error(f"FaderDisplay: output key render failed: {e}")
+
+    def add_device_slot(self, slot) -> None:
+        with self._lock:
+            if slot not in self._device_slots:
+                self._device_slots.append(slot)
+
+    def remove_device_slot(self, slot) -> None:
+        with self._lock:
+            if slot in self._device_slots:
+                self._device_slots.remove(slot)
+
+    def add_device_pager(self, pager) -> None:
+        with self._lock:
+            if pager not in self._device_pagers:
+                self._device_pagers.append(pager)
+
+    def remove_device_pager(self, pager) -> None:
+        with self._lock:
+            if pager in self._device_pagers:
+                self._device_pagers.remove(pager)
 
     @staticmethod
     def _make_channel(name: str, entry: dict) -> dict:
@@ -617,8 +730,8 @@ class FaderDisplay(PluginBase):
         return len(self.channels)
 
     def advance_channel_page(self) -> None:
-        if len(self.channels) > 3:
-            self.channel_offset += 3
+        if len(self.channels) > 4:
+            self.channel_offset += 4
             if self.channel_offset >= len(self.channels):
                 self.channel_offset = 0
         else:
@@ -657,7 +770,7 @@ class FaderDisplay(PluginBase):
             log.error(f"FaderDisplay: sink mute toggle failed: {e}")
 
     def _dispatch(self, changes: tuple) -> None:
-        sinks_changed, apps_changed, channels_changed, sources_changed = changes
+        sinks_changed, apps_changed, channels_changed, sources_changed, devices_changed = changes
         if sinks_changed:
             self._notify()
         if apps_changed:
@@ -666,6 +779,8 @@ class FaderDisplay(PluginBase):
             self._notify_channels()
         if sources_changed:
             self._notify_sources()
+        if sinks_changed or devices_changed:
+            self._notify_devices()
 
     def _notify(self) -> None:
         with self._lock:
@@ -758,8 +873,9 @@ class FaderDisplay(PluginBase):
             if target:
                 wanted.add(target)
         wanted |= self._app_meter_ids       # per-app stream taps (numeric node ids)
-        wanted |= self._channel_meter_targets  # discovered channels + default sink
+        wanted |= self._channel_meter_targets  # discovered channels
         wanted |= self._source_meter_targets   # discovered inputs (mics, line-ins)
+        wanted |= self._device_meter_targets   # default output device
 
         for target in wanted:
             if target not in self._meters:
@@ -853,7 +969,8 @@ class FaderDisplay(PluginBase):
 
             with self._lock:
                 segments = (list(self._segments) + list(self._app_slots)
-                            + list(self._channel_slots) + list(self._source_slots))
+                            + list(self._channel_slots) + list(self._source_slots)
+                            + list(self._device_slots))
             for seg in segments:
                 try:
                     px = seg.meter_px()

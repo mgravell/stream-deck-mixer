@@ -32,9 +32,12 @@ class _NavBase(ActionCore):
 
 class PageSwitch(_NavBase):
     """
-    Jump to another page. Settings:
-      page:  page name without extension, e.g. "Apps"
-      style: "apps" (2x2 grid glyph) | "mixer" (fader-bars glyph)
+    Page-mode key: displays the CURRENT page (glyph + caption, "this is what
+    you're looking at"); pressing it jumps to the next page. Settings:
+      page:  press target, page name without extension, e.g. "Apps"
+      label: caption for the current page (falls back to `page`)
+      style: current page's glyph — "apps" (2x2 grid) | "mixer" (fader bars)
+             | "output" (speaker) | "input" (mic)
     """
 
     def create_event_assigners(self):
@@ -69,6 +72,13 @@ class PageSwitch(_NavBase):
                 draw.rectangle([cx + dx - 2, cy - 20, cx + dx + 2, cy + 20], fill=self.DIM)
                 draw.rectangle([cx + dx - 8, cy - cap - 3, cx + dx + 8, cy - cap + 3],
                                fill=self.GLYPH)
+        elif style == "output":
+            # speaker with sound waves
+            draw.polygon([(cx - 18, cy - 7), (cx - 8, cy - 7), (cx + 2, cy - 16),
+                          (cx + 2, cy + 16), (cx - 8, cy + 7), (cx - 18, cy + 7)],
+                         fill=self.GLYPH)
+            draw.arc([cx + 5, cy - 12, cx + 23, cy + 12], -55, 55,
+                     fill=self.GLYPH, width=4)
         elif style == "input":
             # microphone
             draw.rounded_rectangle([cx - 8, cy - 20, cx + 8, cy + 2], 8, fill=self.GLYPH)
@@ -83,18 +93,13 @@ class PageSwitch(_NavBase):
         self.set_media(image=img, size=1.0)
         self.set_top_label("")
         self.set_center_label("")
-        self.set_bottom_label(self.get_settings().get("page", ""))
+        self.set_bottom_label(settings.get("label") or settings.get("page", ""))
 
 
 class AppPager(_NavBase):
     """Advance the Apps page to the next group of four applications."""
 
     PER_PAGE = 4
-    EMPTY_LABEL = "no audio"
-
-    @staticmethod
-    def _unit(total: int) -> str:
-        return "app" if total == 1 else "apps"
 
     def create_event_assigners(self):
         self.add_event_assigner(EventAssigner(
@@ -131,22 +136,17 @@ class AppPager(_NavBase):
         self.set_media(image=img, size=1.0)
         self.set_top_label("")
         self.set_center_label("")
+        # sits directly under the page-mode key, so a bare range is enough
         if total > self.PER_PAGE:
             self.set_bottom_label(f"{offset + 1}-{min(offset + self.PER_PAGE, total)}/{total}")
-        elif total:
-            self.set_bottom_label(f"{total} {self._unit(total)}")
+        elif total > 1:
+            self.set_bottom_label(f"1-{total}")
         else:
-            self.set_bottom_label(self.EMPTY_LABEL)
+            self.set_bottom_label(str(total))
 
 
 class SourcePager(AppPager):
-    """Advance the Input page to the next group of four input devices."""
-
-    EMPTY_LABEL = "no inputs"
-
-    @staticmethod
-    def _unit(total: int) -> str:
-        return "input" if total == 1 else "inputs"
+    """Advance the Inputs page to the next group of four input devices."""
 
     def create_event_assigners(self):
         self.add_event_assigner(EventAssigner(
@@ -170,15 +170,33 @@ class SourcePager(AppPager):
         self.plugin_base.advance_source_page()
 
 
+class DevicePager(AppPager):
+    """Advance the Outputs page to the next group of four output devices."""
+
+    def create_event_assigners(self):
+        self.add_event_assigner(EventAssigner(
+            id="device-pager",
+            ui_label="Next Outputs",
+            default_events=[Input.Key.Events.DOWN],
+            callback=self._on_press,
+        ))
+
+    def on_ready(self):
+        self.plugin_base.add_device_pager(self)
+        self.render()
+
+    def on_removed_from_cache(self):
+        self.plugin_base.remove_device_pager(self)
+
+    def _counts(self):
+        return self.plugin_base.device_count(), self.plugin_base.device_offset
+
+    def _on_press(self, event):
+        self.plugin_base.advance_device_page()
+
+
 class ChannelPager(AppPager):
-    """Advance the Mixer page to the next group of three channels."""
-
-    PER_PAGE = 3
-    EMPTY_LABEL = "no channels"
-
-    @staticmethod
-    def _unit(total: int) -> str:
-        return "ch"
+    """Advance the Channels page to the next group of four channels."""
 
     def create_event_assigners(self):
         self.add_event_assigner(EventAssigner(

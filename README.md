@@ -9,15 +9,17 @@ and MPRIS media-transport keys.
 Built on Pop!_OS with PipeWire 1.6.8 / WirePlumber 0.5.12 and
 [StreamController](https://github.com/StreamController/StreamController) 1.5.0-beta.16.
 
-![The Output page: channel faders](docs/deck-output.png)
+![The Channels page: virtual-channel faders](docs/deck-channels.png)
+
+![The Outputs page: output devices, default first](docs/deck-outputs.png)
 
 ![The Apps page: per-application faders](docs/deck-apps.png)
 
-![The Input page: microphones and line-ins](docs/deck-input.png)
+![The Inputs page: microphones and line-ins](docs/deck-inputs.png)
 
-*(Three pages — Output: music on Media, Chat muted; Apps: per-application faders with
-icons, Chrome loud, LM Studio muted; Input: USB Mic muted. All rendered by the actual
-plugin code via `docs/render_preview.py`.)*
+*(Four pages — Channels: music on Media, Chat muted; Outputs: the default device ringed
+and metered, Phones muted; Apps: per-application faders with icons; Inputs: USB Mic
+muted. All rendered by the actual plugin code via `docs/render_preview.py`.)*
 
 > This is my personal setup, published as-is in case it's useful — the sink names, deck
 > serial, colors and layout are mine (see [Hardware assumptions](#hardware-assumptions-edit-if-they-change)),
@@ -42,18 +44,19 @@ The Stream Deck drives the sink volumes through StreamController with a single c
 plugin, **FaderDisplay** (in this repo) — each column of three keys is one continuous
 vertical fader (bottom key 0–50%, middle 50–100%, top 100–150%), filled in the channel
 color, dimmed to 35% brightness when muted, with chevron/mute glyphs and per-row text.
-Everything is **discovered at runtime** across three pages — **Output** (any sink named
-`*_channel`, plus a Master column that follows the current default output device),
-**Apps** (whatever is playing audio right now, the default page) and **Input**
-(non-monitor sources: microphones and line-ins) — so the page JSON never needs editing
-when channels, devices or apps change. One utility key cycles the pages.
+Everything is **discovered at runtime** across four pages — **Apps** (whatever is
+playing audio right now; the boot page), **Channels** (any sink named `*_channel`),
+**Outputs** (every output device, the default listed first with an accent ring) and
+**Inputs** (non-monitor sources: microphones and line-ins, default first) — so the page
+JSON never needs editing when channels, devices or apps change. One utility key cycles
+the pages.
 
 ## Repo layout
 
 | Path | Installs to |
 |---|---|
 | `pipewire/10-virtual-channels.conf` | `~/.config/pipewire/pipewire.conf.d/` |
-| `streamcontroller/pages/*.json` (Output/Apps/Input) | `~/.var/app/com.core447.StreamController/data/pages/` |
+| `streamcontroller/pages/*.json` (Apps/Channels/Outputs/Inputs) | `~/.var/app/com.core447.StreamController/data/pages/` |
 | `streamcontroller/settings/pages.json` | `~/.var/app/com.core447.StreamController/data/settings/` (maps deck serial → default page) |
 | `streamcontroller/settings/fader-display.json` | same place (optional: channel order/labels/colors; delete it for automatic) |
 | `streamcontroller/plugins/com_marc_FaderDisplay/` | `~/.var/app/com.core447.StreamController/data/plugins/` |
@@ -93,15 +96,16 @@ Deliberate choices, commented in the conf:
 - Adding a channel = copy a block, rename `node.description` + both `node.name`s, then
   `systemctl --user restart pipewire pipewire-pulse wireplumber`.
 
-### Output page (`Output.json`)
+### Channels and Outputs pages
 
-Columns left→right: **three discovered channels / Master / utilities**.
 Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
 
-Channel columns are *discovered*: every sink named `*_channel` gets one, and Master is
-whatever the current **default output device** is (it follows default-device changes
-live). With more than three channels, the pager key cycles them. Order, labels and
-colors come from the optional config file
+The **Channels** page gives every sink named `*_channel` a fader column (virtual
+streams only). The **Outputs** page lists every *other* sink — the physical and
+virtual output devices — with the current **default device first**, drawn with a white
+accent ring and carrying the live meter; it follows default-device changes live.
+Both pages get a pager key beyond four columns. Order, labels and colors come from the
+optional config file
 `~/.var/app/com.core447.StreamController/data/settings/fader-display.json`:
 
 ```json
@@ -116,17 +120,22 @@ colors come from the optional config file
 ```
 
 Listed channels come first, in order, with their colors; anything else discovered is
-appended alphabetically with a stable name-hashed color. A `match` entry accepts **any**
-sink name, so virtual sinks that don't follow the `*_channel` naming convention can
-still get a column by listing them here. Delete the file (or any field) to let the
-plugin decide everything. Edits are picked up within ~10 s, no restart.
+appended alphabetically with a stable name-hashed color. A `channels` `match` entry
+accepts **any** sink name, so virtual sinks that don't follow the `*_channel` naming
+convention can still get a column by listing them here. An `"outputs"` list does the
+same for the Outputs page (the default device always comes first regardless), and the
+`"master"` entry's label/color apply to **whichever device is currently default** —
+that's why the ringed column reads "Master" in orange. Delete the file (or any field)
+to let the plugin decide everything. Edits are picked up within ~10 s, no restart.
 
-The utility column is the same on every page: **play-pause (⏯)** on top (MPRIS, same as
-the keyboard media key; the glyph tracks live playback state and dims grey when no player
-is running), the **page key** in the middle (the same physical key cycles
-Output → Apps → Input → Output; its glyph and label show where it goes), and the bottom
-key is that page's **pager**. The deck boots to the Apps page
-(`settings/pages.json` maps the deck serial to the default page).
+The utility column is the same on every page: the **page-mode key** on top shows the
+page you are looking at — its glyph and caption name the *current* page, and pressing
+it cycles Apps → Channels → Outputs → Inputs → Apps. The **pager** sits directly
+beneath it, so its label can be a bare range ("1-4/5", or "1-3" when everything fits)
+read against the page caption above. **Play-pause (⏯)** is bottom-right (MPRIS, same as
+the keyboard media key; the glyph tracks live playback state and dims grey when no
+player is running). The deck boots to the Apps page (`settings/pages.json` maps the
+deck serial to the default page).
 Every key carries a single FaderDisplay action: `ChannelSlot` for the fader keys
 (settings: `slot` 0..n or `"master"`, `glyph` `up`/`down`/`mute` — which also picks the
 press behavior — `range-low`/`range-high` for the key's slice of the fader, `text`,
@@ -163,13 +172,15 @@ advertised icon name, its flatpak app-id and process binary, then falls back to 
 match on the app name — flatpak-packaged apps install icons under reverse-DNS names
 (`com.google.Chrome.svg`) that rarely match the advertised icon name.
 
-### Input page (`Input.json`)
+### Inputs page (`Inputs.json`)
 
 The same idea for capture devices: every **non-monitor source** (pavucontrol's "All
 Except Monitors" view — microphones, line-ins) gets a fader column with volume, a
 mic-glyph mute key (red slashed mic when muted) and a live meter tapped straight off
-the source. Labels default to the device description; the config file's `"inputs"` list
-pins order/labels/colors exactly like `"channels"` does. More than four inputs → pager.
+the source. The **default input device comes first** with the same accent ring as the
+default output. Labels default to the device description; the config file's `"inputs"`
+list pins order/labels/colors exactly like `"channels"` does. More than four inputs →
+pager.
 
 ### FaderDisplay plugin
 
@@ -192,7 +203,9 @@ the play/pause glyph on state changes. **Host dependency: `playerctl`**
 pipe accumulates stereo peaks; one display thread applies ballistics, maps amplitude to
 the fader scale (cubic-volume dB math in `_amp_to_frac`), and re-renders only keys
 whose quantized meter pixels changed. The capture streams are visible (and named
-"FaderDisplay meter: …") on pavucontrol's Recording tab — that's normal.
+"FaderDisplay meter: …") on pavucontrol's Recording tab — that's normal. On the Outputs
+page only the **default** device is metered: recording from a sink's monitor keeps that
+device awake, so metering every output would stop them all ever suspending.
 
 ## Hard-won gotchas (read before debugging)
 

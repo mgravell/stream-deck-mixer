@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Generate docs/deck-preview.png (Mixer page) and docs/deck-apps.png (Apps page):
-faithful mock-ups of both pages as they appear on the Stream Deck, by running
-the real FaderDisplay rendering code against a staged scene.
+Generate docs/deck-channels.png, deck-outputs.png, deck-apps.png and
+deck-inputs.png: faithful mock-ups of the four pages as they appear on the
+Stream Deck, by running the real FaderDisplay rendering code against a staged
+scene.
 
 Needs PIL + cairosvg, which the StreamController flatpak ships:
 
@@ -62,9 +63,10 @@ MediaKey = _load("MediaKey").MediaKey
 AppSlot = _load("AppSlot").AppSlot
 ChannelSlot = _load("ChannelSlot").ChannelSlot
 SourceSlot = _load("SourceSlot").SourceSlot
+DeviceSlot = _load("DeviceSlot").DeviceSlot
 _nav = _load("Nav")
 PageSwitch, AppPager = _nav.PageSwitch, _nav.AppPager
-ChannelPager, SourcePager = _nav.ChannelPager, _nav.SourcePager
+ChannelPager, SourcePager, DevicePager = _nav.ChannelPager, _nav.SourcePager, _nav.DevicePager
 
 # ---- staged scene --------------------------------------------------------
 
@@ -133,7 +135,15 @@ CHANNELS = [  # mirrors the example fader-display.json config
      "meter_target": "game_channel.out"},
 ]
 MASTER = {"name": G3, "label": "Master", "color": (235, 145, 35),
-          "meter_target": G3 + ".monitor"}
+          "meter_target": G3 + ".monitor", "accent": True}
+
+HDMI, SPDIF, PHONES = "hdmi", "spdif", "phones"
+DEVICES = [  # Outputs page scene: G3 is default (accented, metered, "Master")
+    MASTER,
+    {"name": HDMI, "label": "HDMI", "color": (90, 130, 235), "meter_target": None},
+    {"name": SPDIF, "label": "SPDIF", "color": (150, 90, 220), "meter_target": None},
+    {"name": PHONES, "label": "Phones", "color": (0, 165, 185), "meter_target": None},
+]
 
 G3_MIC = "g3_mic"
 SOURCES = [  # Input page scene: G3 mic hot, USB mic muted, line-in quiet
@@ -141,7 +151,9 @@ SOURCES = [  # Input page scene: G3 mic hot, USB mic muted, line-in quiet
     {"name": "usb_mic", "label": "USB Mic", "color": (150, 90, 220), "meter_target": "usb_mic"},
     {"name": "line_in", "label": "Line In", "color": (95, 180, 60), "meter_target": "line_in"},
 ]
+SOURCES[0]["accent"] = True  # default input device
 SOURCE_STATE = {G3_MIC: (100, False), "usb_mic": (100, True), "line_in": (80, False)}
+SINKS.update({HDMI: (100, False), SPDIF: (100, False), PHONES: (70, True)})
 METERS[G3_MIC] = ((0.52, 0.47), (0.60, 0.55))
 METERS["line_in"] = ((0.22, 0.20), (0.30, 0.27))
 
@@ -163,14 +175,18 @@ plugin_base = SimpleNamespace(
     get_source_state=SOURCE_STATE.get,
     source_count=lambda: len(SOURCES),
     source_offset=0,
+    get_device=lambda slot: DEVICES[slot] if 0 <= slot < len(DEVICES) else None,
+    device_count=lambda: 5,  # one more than shown, so the pager reads 1-4/5
+    device_offset=0,
 )
 
 # ---- render every key through the real action code -----------------------
 
 ACTIONS = {"Segment": Segment, "MediaKey": MediaKey, "AppSlot": AppSlot,
            "ChannelSlot": ChannelSlot, "SourceSlot": SourceSlot,
-           "PageSwitch": PageSwitch, "AppPager": AppPager,
-           "ChannelPager": ChannelPager, "SourcePager": SourcePager}
+           "DeviceSlot": DeviceSlot, "PageSwitch": PageSwitch,
+           "AppPager": AppPager, "ChannelPager": ChannelPager,
+           "SourcePager": SourcePager, "DevicePager": DevicePager}
 
 
 def render_key(cls, settings):
@@ -232,6 +248,7 @@ def render_page(page_file, out_file):
     print(f"wrote {out}")
 
 
-render_page("Output.json", "deck-output.png")
+render_page("Channels.json", "deck-channels.png")
+render_page("Outputs.json", "deck-outputs.png")
 render_page("Apps.json", "deck-apps.png")
-render_page("Input.json", "deck-input.png")
+render_page("Inputs.json", "deck-inputs.png")

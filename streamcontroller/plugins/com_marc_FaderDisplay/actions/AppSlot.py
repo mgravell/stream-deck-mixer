@@ -133,6 +133,14 @@ class AppSlot(Segment):
             icon = data["icon"]  # top key: icon in the (otherwise empty) bottom half
             img.paste(icon, (55 - icon.width // 2, 70 - icon.height // 2), icon)
 
+        if data.get("accent"):  # ring around the column marking the default device
+            draw.rectangle([0, 0, 1, size], fill=self.CAP)
+            draw.rectangle([size - 2, 0, size, size], fill=self.CAP)
+            if glyph == "up":
+                draw.rectangle([0, 0, size, 1], fill=self.CAP)
+            if glyph in ("mute", "mic"):
+                draw.rectangle([0, size - 2, size, size], fill=self.CAP)
+
         self.set_media(image=img, size=1.0)
 
         text = settings.get("text", "none")

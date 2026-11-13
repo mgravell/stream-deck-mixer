@@ -6,7 +6,7 @@ from .AppSlot import AppSlot
 
 class ChannelSlot(AppSlot):
     """
-    One key of a discovered-channel fader column on the Mixer page.
+    One key of a discovered-channel fader column on the Channels page.
 
     Channels are sinks discovered by the plugin (names ending "_channel",
     plus anything pinned in the optional config file, which also sets order,
@@ -47,13 +47,15 @@ class ChannelSlot(AppSlot):
         if state is None:
             return None
         volume, muted = state
+        label = channel["label"]
         return {
             "volume": volume,
             "muted": muted,
             "color": channel["color"],
             "meter": self.plugin_base.get_meter_display(channel["meter_target"]),
-            "label": channel["label"],
+            "label": label if len(label) <= 9 else label[:8] + "…",
             "icon": None,
+            "accent": channel.get("accent", False),
         }
 
     def _on_press(self, event):

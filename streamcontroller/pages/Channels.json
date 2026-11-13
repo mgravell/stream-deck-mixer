@@ -5,7 +5,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 0,
                                 "glyph": "up",
@@ -30,7 +30,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 0,
                                 "glyph": "down",
@@ -55,10 +55,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 0,
-                                "glyph": "mic",
+                                "glyph": "mute",
                                 "text": "label",
                                 "range-low": 0.0,
                                 "range-high": 0.3333,
@@ -80,7 +80,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 1,
                                 "glyph": "up",
@@ -105,7 +105,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 1,
                                 "glyph": "down",
@@ -130,10 +130,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 1,
-                                "glyph": "mic",
+                                "glyph": "mute",
                                 "text": "label",
                                 "range-low": 0.0,
                                 "range-high": 0.3333,
@@ -155,7 +155,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 2,
                                 "glyph": "up",
@@ -180,7 +180,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 2,
                                 "glyph": "down",
@@ -205,10 +205,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 2,
-                                "glyph": "mic",
+                                "glyph": "mute",
                                 "text": "label",
                                 "range-low": 0.0,
                                 "range-high": 0.3333,
@@ -230,7 +230,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 3,
                                 "glyph": "up",
@@ -255,7 +255,7 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 3,
                                 "glyph": "down",
@@ -280,10 +280,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourceSlot",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
                                 "slot": 3,
-                                "glyph": "mic",
+                                "glyph": "mute",
                                 "text": "label",
                                 "range-low": 0.0,
                                 "range-high": 0.3333,
@@ -305,9 +305,11 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "id": "com_marc_FaderDisplay::PageSwitch",
                             "settings": {
-                                "media-command": "play-pause"
+                                "page": "Outputs",
+                                "style": "mixer",
+                                "label": "Channels"
                             }
                         }
                     ],
@@ -325,11 +327,8 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::PageSwitch",
-                            "settings": {
-                                "page": "Output",
-                                "style": "mixer"
-                            }
+                            "id": "com_marc_FaderDisplay::ChannelPager",
+                            "settings": {}
                         }
                     ],
                     "label-control-actions": [
@@ -346,8 +345,10 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::SourcePager",
-                            "settings": {}
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "play-pause"
+                            }
                         }
                     ],
                     "label-control-actions": [
