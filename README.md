@@ -90,11 +90,12 @@ Deliberate choices, commented in the conf:
 
 ### Stream Deck page (`Mixer.json`)
 
-Columns left→right: **Media (red) / Chat (green) / Game (blue) / media keys / Master (orange)**.
+Columns left→right: **Media (red) / Chat (green) / Game (blue) / Master (orange) / utilities**.
 Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
-The fourth column is media transport, top→bottom: **previous (⏮) / play-pause (⏯) / next (⏭)**
-— these drive MPRIS (same as keyboard media keys) and the play/pause glyph tracks the live
-playback state; glyphs dim grey when no media player is running.
+The utility column is the same on every page: **play-pause (⏯)** on top (MPRIS, same as
+the keyboard media key; the glyph tracks live playback state and dims grey when no player
+is running), the **page toggle** in the middle (same physical key flips Mixer ↔ Apps),
+and the bottom key is spare on the Mixer page / the **app pager** on the Apps page.
 Every fader key carries two actions: `com_gapls_AudioControl::AdjustVolume|Mute`
 (index 0, the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals),
 with `image-control-action: 1` and `label-control-actions: [1,1,1]`. Media keys carry a
@@ -117,11 +118,32 @@ with fast-attack/slow-release ballistics and a 1.2 s peak hold; only keys whose 
 pixels changed are redrawn (~1.6 ms each, ~10% of one core while audio plays, ~zero
 when idle).
 
+### Apps page (`Apps.json`)
+
+![The Apps page](docs/deck-apps.png)
+
+A per-application mixer: the first four applications currently playing audio each get a
+full fader column — same up/down/mute rows, VU strip and 150% overdrive as the channel
+faders, but controlling the app's *streams* (sink-inputs) directly. Columns appear and
+disappear live as apps start and stop playing; a browser's many streams are grouped
+under one column by application name, and each app keeps a stable color (hashed from its
+name) and a stable column order (first-seen). With more than four apps, the pager key
+cycles through them four at a time — paging is a plugin-side offset, so one static page
+JSON handles any number of apps.
+
+The top key of each column shows the **app's icon**, resolved from the host's icon
+themes (`flatpak-spawn --host find/cat`, cached): the lookup tries the stream's
+advertised icon name, its flatpak app-id and process binary, then falls back to a fuzzy
+match on the app name — flatpak-packaged apps install icons under reverse-DNS names
+(`com.google.Chrome.svg`) that rarely match the advertised icon name.
+
 ### FaderDisplay plugin
 
-A few hundred lines of Python, two action types. **Segment**: one daemon thread holds a
-`pulsectl` connection listening for sink events; on any volume/mute change it re-renders
-every registered Segment (PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController
+A few hundred lines of Python, five action types (**Segment**, **MediaKey**,
+**AppSlot**, **PageSwitch**, **AppPager**). **Segment**: one daemon thread holds a
+`pulsectl` connection listening for sink *and sink-input* events; on any change it
+re-renders every registered key (PIL-drawn 96×96 bitmaps) and keeps the per-application
+registry that drives the Apps page. Volume text and labels are StreamController
 labels, so they render with the app's font stack on top of the bitmap. **MediaKey**:
 presses run `flatpak-spawn --host playerctl <play-pause|previous|next>` (the sandbox
 can't talk to MPRIS bus names directly, but it may talk to the Flatpak portal, so host

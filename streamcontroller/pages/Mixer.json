@@ -471,7 +471,7 @@
                 }
             }
         },
-        "4x0": {
+        "3x0": {
             "states": {
                 "0": {
                     "actions": [
@@ -516,7 +516,7 @@
                 }
             }
         },
-        "4x1": {
+        "3x1": {
             "states": {
                 "0": {
                     "actions": [
@@ -561,7 +561,7 @@
                 }
             }
         },
-        "4x2": {
+        "3x2": {
             "states": {
                 "0": {
                     "actions": [
@@ -604,27 +604,7 @@
                 }
             }
         },
-        "3x0": {
-            "states": {
-                "0": {
-                    "actions": [
-                        {
-                            "id": "com_marc_FaderDisplay::MediaKey",
-                            "settings": {
-                                "media-command": "previous"
-                            }
-                        }
-                    ],
-                    "label-control-actions": [
-                        0,
-                        0,
-                        0
-                    ],
-                    "image-control-action": 0
-                }
-            }
-        },
-        "3x1": {
+        "4x0": {
             "states": {
                 "0": {
                     "actions": [
@@ -644,14 +624,15 @@
                 }
             }
         },
-        "3x2": {
+        "4x1": {
             "states": {
                 "0": {
                     "actions": [
                         {
-                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "id": "com_marc_FaderDisplay::PageSwitch",
                             "settings": {
-                                "media-command": "next"
+                                "page": "Apps",
+                                "style": "apps"
                             }
                         }
                     ],

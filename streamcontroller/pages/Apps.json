@@ -1,0 +1,363 @@
+{
+    "keys": {
+        "0x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 0,
+                                "glyph": "up",
+                                "text": "none",
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "0x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 0,
+                                "glyph": "down",
+                                "text": "volume",
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "0x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 0,
+                                "glyph": "mute",
+                                "text": "label",
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "1x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 1,
+                                "glyph": "up",
+                                "text": "none",
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "1x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 1,
+                                "glyph": "down",
+                                "text": "volume",
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "1x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 1,
+                                "glyph": "mute",
+                                "text": "label",
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "2x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 2,
+                                "glyph": "up",
+                                "text": "none",
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "2x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 2,
+                                "glyph": "down",
+                                "text": "volume",
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "2x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 2,
+                                "glyph": "mute",
+                                "text": "label",
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "3x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 3,
+                                "glyph": "up",
+                                "text": "none",
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "3x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 3,
+                                "glyph": "down",
+                                "text": "volume",
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "3x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppSlot",
+                            "settings": {
+                                "slot": 3,
+                                "glyph": "mute",
+                                "text": "label",
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "4x0": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::MediaKey",
+                            "settings": {
+                                "media-command": "play-pause"
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "4x1": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::PageSwitch",
+                            "settings": {
+                                "page": "Mixer",
+                                "style": "mixer"
+                            }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "4x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::AppPager",
+                            "settings": {}
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        }
+    }
+}

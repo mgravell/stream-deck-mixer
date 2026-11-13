@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate docs/deck-preview.png: a faithful mock-up of the Mixer page as it
-appears on the Stream Deck, by running the real FaderDisplay rendering code
-(Segment + MediaKey) against a staged scene.
+Generate docs/deck-preview.png (Mixer page) and docs/deck-apps.png (Apps page):
+faithful mock-ups of both pages as they appear on the Stream Deck, by running
+the real FaderDisplay rendering code against a staged scene.
 
-Needs PIL, which the StreamController flatpak ships:
+Needs PIL + cairosvg, which the StreamController flatpak ships:
 
     flatpak run --command=python3 com.core447.StreamController docs/render_preview.py
-
-Scene: music playing on Media (meters bouncing), Chat muted, Game quiet,
-Master showing the final mix, media transport mid-playback.
 """
 
 import importlib.util
+import io
 import json
 import os
 import sys
@@ -23,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN = os.path.join(ROOT, "streamcontroller", "plugins", "com_marc_FaderDisplay")
-OUT = os.path.join(ROOT, "docs", "deck-preview.png")
+PAGES = os.path.join(ROOT, "streamcontroller", "pages")
 
 # ---- stub the StreamController framework the actions import --------------
 
@@ -43,17 +41,27 @@ _stub("src.backend.PluginManager.EventAssigner", EventAssigner=object)
 _stub("src.backend.DeckManagement")
 _stub("src.backend.DeckManagement.InputIdentifier",
       Input=SimpleNamespace(Key=SimpleNamespace(Events=SimpleNamespace(DOWN=None))))
+_stub("globals", DATA_PATH="", page_manager=None)
+
+package = types.ModuleType("fdp_actions")
+package.__path__ = [os.path.join(PLUGIN, "actions")]
+sys.modules["fdp_actions"] = package
 
 
-def _load(path, name):
-    spec = importlib.util.spec_from_file_location(name, path)
+def _load(modname):
+    spec = importlib.util.spec_from_file_location(
+        f"fdp_actions.{modname}", os.path.join(PLUGIN, "actions", f"{modname}.py"))
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[f"fdp_actions.{modname}"] = mod
     spec.loader.exec_module(mod)
     return mod
 
 
-Segment = _load(os.path.join(PLUGIN, "actions", "Segment.py"), "_seg").Segment
-MediaKey = _load(os.path.join(PLUGIN, "actions", "MediaKey.py"), "_mk").MediaKey
+Segment = _load("Segment").Segment
+MediaKey = _load("MediaKey").MediaKey
+AppSlot = _load("AppSlot").AppSlot
+_nav = _load("Nav")
+PageSwitch, AppPager = _nav.PageSwitch, _nav.AppPager
 
 # ---- staged scene --------------------------------------------------------
 
@@ -74,13 +82,61 @@ METERS = {  # meter-target -> ((bar L, bar R), (hold L, hold R)) column fraction
     G3 + ".monitor": ((0.60, 0.54), (0.70, 0.62)),
 }
 
+APPS = [  # the Apps page scene: Chrome loud, Heroic quiet, LM Studio muted
+    {"name": "Google Chrome", "volume": 90, "muted": False, "inputs": [1],
+     "icon_candidates": [], "_meter": ((0.56, 0.50), (0.63, 0.58))},
+    {"name": "Heroic", "volume": 70, "muted": False, "inputs": [2],
+     "icon_candidates": [], "_meter": ((0.30, 0.27), (0.38, 0.34))},
+    {"name": "LM Studio", "volume": 100, "muted": True, "inputs": [3],
+     "icon_candidates": [], "_meter": ((0.0, 0.0), (0.0, 0.0))},
+]
+
+HOME = os.path.expanduser("~")
+FLATPAK_ICONS = f"{HOME}/.local/share/flatpak/exports/share/icons/hicolor"
+ICON_FILES = {
+    "Google Chrome": f"{FLATPAK_ICONS}/scalable/apps/com.google.Chrome.svg",
+    "Heroic": f"{FLATPAK_ICONS}/128x128/apps/com.heroicgameslauncher.hgl.png",
+    "LM Studio": f"{FLATPAK_ICONS}/128x128/apps/ai.lmstudio.lm-studio.png",
+}
+
+
+def load_icon(path):
+    # flatpak masks ~/.local/share/flatpak from sandboxes; read via the host
+    # (exactly as the plugin's own icon resolver does)
+    try:
+        import subprocess
+        data = subprocess.run(["flatpak-spawn", "--host", "cat", path],
+                              capture_output=True, timeout=15, cwd="/").stdout
+        if not data:
+            return None
+        if path.endswith(".svg"):
+            import cairosvg
+            data = cairosvg.svg2png(bytestring=data, output_width=40, output_height=40)
+        icon = Image.open(io.BytesIO(data)).convert("RGBA")
+        icon.thumbnail((38, 38), Image.Resampling.LANCZOS)
+        return icon
+    except Exception:
+        return None
+
+
+ICONS = {name: load_icon(path) for name, path in ICON_FILES.items()}
+
 plugin_base = SimpleNamespace(
     get_sink_state=SINKS.get,
     get_meter_display=lambda t: METERS.get(t, ((0.0, 0.0), (0.0, 0.0))),
     media_status="Playing",
+    apps=APPS,
+    app_offset=0,
+    app_count=lambda: len(APPS),
+    get_app=lambda slot: APPS[slot] if 0 <= slot < len(APPS) else None,
+    get_app_meter_display=lambda app: app["_meter"],
+    get_app_icon=lambda app: ICONS.get(app["name"]),
 )
 
 # ---- render every key through the real action code -----------------------
+
+ACTIONS = {"Segment": Segment, "MediaKey": MediaKey, "AppSlot": AppSlot,
+           "PageSwitch": PageSwitch, "AppPager": AppPager}
 
 
 def render_key(cls, settings):
@@ -105,39 +161,42 @@ def find_font(size):
     return ImageFont.load_default(size)
 
 
-page = json.load(open(os.path.join(ROOT, "streamcontroller", "pages", "Mixer.json")))
-font = find_font(16)
-keys = {}
-for coord, key in page["keys"].items():
-    x, y = map(int, coord.split("x"))
-    img = label = None
-    for action in key["states"]["0"]["actions"]:
-        if action["id"].endswith("::Segment"):
-            img, label = render_key(Segment, action["settings"])
-        elif action["id"].endswith("::MediaKey"):
-            img, label = render_key(MediaKey, action["settings"])
-    if img is None:
-        continue
-    if label:  # StreamController composites labels over the image; mimic that
-        draw = ImageDraw.Draw(img)
-        draw.text((48, 93), str(label), anchor="ms", font=font,
-                  fill=(255, 255, 255), stroke_width=2, stroke_fill=(0, 0, 0))
-    keys[(x, y)] = img
+FONT = find_font(16)
 
-# ---- compose the deck face ------------------------------------------------
 
-KEY, GAP, MARGIN, RADIUS = 192, 26, 56, 26
-W = MARGIN * 2 + 5 * KEY + 4 * GAP
-H = MARGIN * 2 + 3 * KEY + 2 * GAP
-canvas = Image.new("RGB", (W, H), (17, 17, 19))
+def render_page(page_file, out_file):
+    page = json.load(open(os.path.join(PAGES, page_file)))
+    keys = {}
+    for coord, key in page["keys"].items():
+        x, y = map(int, coord.split("x"))
+        img = label = None
+        for action in key["states"]["0"]["actions"]:
+            suffix = action["id"].split("::")[-1]
+            if suffix in ACTIONS:
+                img, label = render_key(ACTIONS[suffix], action["settings"])
+        if img is None:
+            img = Image.new("RGBA", (96, 96), (18, 18, 18, 255))  # unassigned key
+        if label:  # StreamController composites labels over the image; mimic that
+            ImageDraw.Draw(img).text((48, 93), str(label), anchor="ms", font=FONT,
+                                     fill=(255, 255, 255), stroke_width=2,
+                                     stroke_fill=(0, 0, 0))
+        keys[(x, y)] = img
 
-mask = Image.new("L", (KEY, KEY), 0)
-ImageDraw.Draw(mask).rounded_rectangle([0, 0, KEY - 1, KEY - 1], RADIUS, fill=255)
+    KEY, GAP, MARGIN, RADIUS = 192, 26, 56, 26
+    width = MARGIN * 2 + 5 * KEY + 4 * GAP
+    height = MARGIN * 2 + 3 * KEY + 2 * GAP
+    canvas = Image.new("RGB", (width, height), (17, 17, 19))
+    mask = Image.new("L", (KEY, KEY), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, KEY - 1, KEY - 1], RADIUS, fill=255)
+    for x in range(5):
+        for y in range(3):
+            img = keys.get((x, y), Image.new("RGBA", (96, 96), (18, 18, 18, 255)))
+            up = img.convert("RGB").resize((KEY, KEY), Image.Resampling.LANCZOS)
+            canvas.paste(up, (MARGIN + x * (KEY + GAP), MARGIN + y * (KEY + GAP)), mask)
+    out = os.path.join(ROOT, "docs", out_file)
+    canvas.save(out)
+    print(f"wrote {out}")
 
-for (x, y), img in keys.items():
-    up = img.convert("RGB").resize((KEY, KEY), Image.Resampling.LANCZOS)
-    pos = (MARGIN + x * (KEY + GAP), MARGIN + y * (KEY + GAP))
-    canvas.paste(up, pos, mask)
 
-canvas.save(OUT)
-print(f"wrote {OUT} ({W}x{H}, {len(keys)} keys)")
+render_page("Mixer.json", "deck-preview.png")
+render_page("Apps.json", "deck-apps.png")

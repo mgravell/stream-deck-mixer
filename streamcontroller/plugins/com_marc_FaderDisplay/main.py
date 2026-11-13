@@ -8,6 +8,7 @@ Segment action re-renders its slice of the fader.
 """
 
 import math
+import os
 import subprocess
 import threading
 import time
@@ -23,6 +24,8 @@ from src.backend.DeckManagement.InputIdentifier import Input
 
 from .actions.Segment import Segment
 from .actions.MediaKey import MediaKey
+from .actions.AppSlot import AppSlot
+from .actions.Nav import PageSwitch, AppPager
 
 
 def _amp_to_frac(amp: float) -> float:
@@ -69,6 +72,16 @@ class FaderDisplay(PluginBase):
         self.meter_display: dict[str, tuple] = {}
         self._meter_display_started = False
 
+        # per-application registry (Apps page)
+        self.apps: list[dict] = []     # ordered; {"name", "icon_name", "volume", "muted", "inputs"}
+        self.app_offset = 0            # paging offset into self.apps
+        self._app_order: dict[str, int] = {}  # name -> first-seen rank (stable columns)
+        self._app_meter_ids: set[str] = set()
+        self._app_slots: list = []
+        self._pagers: list = []
+        self._icon_cache: dict[str, object] = {}  # icon_name -> PIL image or None
+        self._icon_pending: set[str] = set()
+
         self.segment_holder = ActionHolder(
             plugin_base=self,
             action_base=Segment,
@@ -81,6 +94,21 @@ class FaderDisplay(PluginBase):
             },
         )
         self.add_action_holder(self.segment_holder)
+
+        for action_base, suffix, name in ((AppSlot, "AppSlot", "App Slot"),
+                                          (PageSwitch, "PageSwitch", "Switch Page"),
+                                          (AppPager, "AppPager", "Next Apps")):
+            self.add_action_holder(ActionHolder(
+                plugin_base=self,
+                action_base=action_base,
+                action_id_suffix=suffix,
+                action_name=name,
+                action_support={
+                    Input.Key: ActionInputSupport.SUPPORTED,
+                    Input.Dial: ActionInputSupport.UNSUPPORTED,
+                    Input.Touchscreen: ActionInputSupport.UNSUPPORTED,
+                },
+            ))
 
         self.media_key_holder = ActionHolder(
             plugin_base=self,
@@ -127,17 +155,211 @@ class FaderDisplay(PluginBase):
             if key in self._media_keys:
                 self._media_keys.remove(key)
 
+    def add_app_slot(self, slot) -> None:
+        with self._lock:
+            if slot not in self._app_slots:
+                self._app_slots.append(slot)
+
+    def remove_app_slot(self, slot) -> None:
+        with self._lock:
+            if slot in self._app_slots:
+                self._app_slots.remove(slot)
+
+    def add_pager(self, pager) -> None:
+        with self._lock:
+            if pager not in self._pagers:
+                self._pagers.append(pager)
+
+    def remove_pager(self, pager) -> None:
+        with self._lock:
+            if pager in self._pagers:
+                self._pagers.remove(pager)
+
+    # Application registry (Apps page)
+
+    def get_app(self, slot: int):
+        index = self.app_offset + slot
+        return self.apps[index] if 0 <= index < len(self.apps) else None
+
+    def app_count(self) -> int:
+        return len(self.apps)
+
+    def advance_app_page(self) -> None:
+        if len(self.apps) > 4:
+            self.app_offset += 4
+            if self.app_offset >= len(self.apps):
+                self.app_offset = 0
+        else:
+            self.app_offset = 0
+        self._notify_apps()
+
+    def _notify_apps(self) -> None:
+        with self._lock:
+            targets = list(self._app_slots) + list(self._pagers)
+        for target in targets:
+            try:
+                target.render()
+            except Exception as e:
+                log.error(f"FaderDisplay: app key render failed: {e}")
+
+    def adjust_app_volume(self, app: dict, delta: int) -> None:
+        target = max(0, min(150, app["volume"] + delta)) / 100
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for si in pulse.sink_input_list():
+                    if si.index in app["inputs"]:
+                        pulse.volume_set_all_chans(si, target)
+        except Exception as e:
+            log.error(f"FaderDisplay: app volume change failed: {e}")
+
+    def toggle_app_mute(self, app: dict) -> None:
+        target = not app["muted"]
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for index in app["inputs"]:
+                    try:
+                        pulse.sink_input_mute(index, target)
+                    except Exception:
+                        pass  # stream may have just vanished
+        except Exception as e:
+            log.error(f"FaderDisplay: app mute toggle failed: {e}")
+
+    def get_app_meter_display(self, app: dict) -> tuple:
+        """Combine the meter displays of all of an app's streams (max per channel)."""
+        bars = [0.0, 0.0]
+        holds = [0.0, 0.0]
+        for index in app["inputs"]:
+            (bl, br), (hl, hr) = self.meter_display.get(str(index), ((0.0, 0.0), (0.0, 0.0)))
+            bars[0] = max(bars[0], bl)
+            bars[1] = max(bars[1], br)
+            holds[0] = max(holds[0], hl)
+            holds[1] = max(holds[1], hr)
+        return tuple(bars), tuple(holds)
+
+    # Application icons: resolved from the host's icon themes in a background
+    # thread (the sandbox can't see /usr/share/icons), cached by icon name.
+
+    ICON_DIRS = ("/usr/share/icons", "/usr/share/pixmaps",
+                 "/var/lib/flatpak/exports/share/icons",
+                 "$HOME/.local/share/icons",
+                 "$HOME/.local/share/flatpak/exports/share/icons")
+
+    def get_app_icon(self, app: dict):
+        key = app["name"]
+        if key in self._icon_cache:
+            return self._icon_cache[key]
+        if key not in self._icon_pending:
+            self._icon_pending.add(key)
+            threading.Thread(target=self._resolve_icon,
+                             args=(key, list(app["icon_candidates"])),
+                             daemon=True, name=f"icon-{key[:20]}").start()
+        return None
+
+    def _resolve_icon(self, key: str, candidates: list) -> None:
+        """Find an icon file on the host for any of the candidate names, with a
+        fuzzy fallback on the app name (flatpak icons use reverse-DNS ids that
+        rarely match the advertised icon name)."""
+        icon = None
+        try:
+            candidates = [c for c in candidates
+                          if c and all(ch.isalnum() or ch in "._-" for ch in c)]
+            clauses = [f'-iname "{c}.png" -o -iname "{c}.svg"' for c in candidates]
+            tokens = [t for t in "".join(ch if ch.isalnum() else " " for ch in key).split()
+                      if len(t) >= 4]
+            if tokens:
+                fuzzy = max(tokens, key=len).lower()
+                clauses.append(f'-iname "*{fuzzy}*.png" -o -iname "*{fuzzy}*.svg"')
+            if clauses:
+                script = ("find " + " ".join(f'"{d}"' for d in self.ICON_DIRS) +
+                          " \\( " + " -o ".join(clauses) + " \\) 2>/dev/null | head -80")
+                result = subprocess.run(["flatpak-spawn", "--host", "sh", "-c", script],
+                                        capture_output=True, text=True, timeout=15, cwd="/")
+                best = self._pick_icon_file(result.stdout.splitlines(), candidates)
+                if best:
+                    data = subprocess.run(["flatpak-spawn", "--host", "cat", best],
+                                          capture_output=True, timeout=15, cwd="/").stdout
+                    icon = self._load_icon(data, best.endswith(".svg"))
+        except Exception as e:
+            log.warning(f"FaderDisplay: icon lookup for {key} failed: {e}")
+        self._icon_cache[key] = icon
+        self._icon_pending.discard(key)
+        if icon is not None:
+            self._notify_apps()
+
+    @staticmethod
+    def _pick_icon_file(paths: list, candidates: list) -> str | None:
+        stems = [c.lower() for c in candidates]
+
+        def score(path: str) -> int:
+            base = os.path.basename(path).rsplit(".", 1)[0].lower()
+            points = 0
+            if base in stems:  # exact candidate match beats any fuzzy hit
+                points += 1000 - 10 * stems.index(base)
+            png = path.endswith(".png")
+            for size, size_points in (("/64x64/", 100), ("/96x96/", 90), ("/128x128/", 85),
+                                      ("/48x48/", 80), ("/256x256/", 70), ("/32x32/", 50)):
+                if size in path:
+                    return points + (size_points if png else 20)
+            if "/scalable/" in path:
+                return points + 60
+            return points + (40 if png else 30)
+        paths = [p for p in paths if p.strip()]
+        return max(paths, key=score) if paths else None
+
+    @staticmethod
+    def _load_icon(data: bytes, is_svg: bool):
+        import io
+
+        from PIL import Image
+        if is_svg:
+            import cairosvg
+            data = cairosvg.svg2png(bytestring=data, output_width=40, output_height=40)
+        icon = Image.open(io.BytesIO(data)).convert("RGBA")
+        icon.thumbnail((38, 38), Image.Resampling.LANCZOS)
+        return icon
+
     # Pulse monitoring
 
-    def _refresh(self, pulse) -> bool:
+    def _refresh(self, pulse) -> tuple:
+        """Returns (sinks_changed, apps_changed)."""
         state = {}
         for sink in pulse.sink_list():
             volume = round(pulse.volume_get_all_chans(sink) * 100)
             state[sink.name] = (volume, bool(sink.mute))
-        if state != self.sink_state:
+        sinks_changed = state != self.sink_state
+        if sinks_changed:
             self.sink_state = state
-            return True
-        return False
+
+        groups: dict[str, dict] = {}
+        for si in pulse.sink_input_list():
+            props = si.proplist
+            if props.get("node.name", "").endswith(".out"):
+                continue  # our own channel->G3 loopback streams
+            name = props.get("application.name") or props.get("application.process.binary")
+            if not name:
+                continue
+            group = groups.setdefault(name, {"name": name, "icon_candidates": [],
+                                             "volume": 0, "muted": True, "inputs": []})
+            group["volume"] = max(group["volume"],
+                                  round(pulse.volume_get_all_chans(si) * 100))
+            group["muted"] = group["muted"] and bool(si.mute)
+            group["inputs"].append(si.index)
+            for prop in ("application.icon_name", "pipewire.access.portal.app_id",
+                         "application.id", "application.process.binary"):
+                value = props.get(prop)
+                if value and value not in group["icon_candidates"]:
+                    group["icon_candidates"].append(value)
+        for name in groups:
+            self._app_order.setdefault(name, len(self._app_order))
+        apps = sorted(groups.values(), key=lambda g: self._app_order[g["name"]])
+        apps_changed = apps != self.apps
+        if apps_changed:
+            self.apps = apps
+            if self.app_offset >= len(apps):
+                self.app_offset = 0
+            self._app_meter_ids = {str(i) for g in apps for i in g["inputs"]}
+            self._sync_meters()
+        return sinks_changed, apps_changed
 
     def _notify(self) -> None:
         with self._lock:
@@ -155,14 +377,20 @@ class FaderDisplay(PluginBase):
         while True:
             try:
                 with pulsectl.Pulse("fader-display-monitor") as pulse:
-                    if self._refresh(pulse):
+                    sinks_changed, apps_changed = self._refresh(pulse)
+                    if sinks_changed:
                         self._notify()
-                    pulse.event_mask_set("sink")
+                    if apps_changed:
+                        self._notify_apps()
+                    pulse.event_mask_set("sink", "sink_input")
                     pulse.event_callback_set(on_event)
                     while True:
                         pulse.event_listen(timeout=10)
-                        if self._refresh(pulse):
+                        sinks_changed, apps_changed = self._refresh(pulse)
+                        if sinks_changed:
                             self._notify()
+                        if apps_changed:
+                            self._notify_apps()
             except Exception as e:
                 log.warning(f"FaderDisplay: pulse monitor reconnecting: {e}")
                 time.sleep(3)
@@ -231,6 +459,7 @@ class FaderDisplay(PluginBase):
                 target = None
             if target:
                 wanted.add(target)
+        wanted |= self._app_meter_ids  # per-app stream taps (numeric node ids)
 
         for target in wanted:
             if target not in self._meters:
@@ -316,7 +545,7 @@ class FaderDisplay(PluginBase):
                 self.meter_display[target] = (tuple(bars), tuple(holds))
 
             with self._lock:
-                segments = list(self._segments)
+                segments = list(self._segments) + list(self._app_slots)
             for seg in segments:
                 try:
                     px = seg.meter_px()

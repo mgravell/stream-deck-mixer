@@ -24,7 +24,7 @@ DATA=~/.var/app/com.core447.StreamController/data
 mkdir -p "$DATA/pages" "$DATA/plugins" "$DATA/settings"
 
 echo "==> Mixer page + FaderDisplay plugin"
-cp streamcontroller/pages/Mixer.json "$DATA/pages/"
+cp streamcontroller/pages/*.json "$DATA/pages/"
 rm -rf "$DATA/plugins/com_marc_FaderDisplay"
 cp -r streamcontroller/plugins/com_marc_FaderDisplay "$DATA/plugins/"
 

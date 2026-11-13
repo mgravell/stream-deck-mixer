@@ -109,7 +109,11 @@ class Segment(ActionCore):
 
     def _draw_meter(self, draw: ImageDraw.ImageDraw, size: int, target: str,
                     lo: float, hi: float):
-        (bar_l, bar_r), (hold_l, hold_r) = self.plugin_base.get_meter_display(target)
+        self._draw_meter_bars(draw, size, self.plugin_base.get_meter_display(target), lo, hi)
+
+    def _draw_meter_bars(self, draw: ImageDraw.ImageDraw, size: int, data: tuple,
+                         lo: float, hi: float):
+        (bar_l, bar_r), (hold_l, hold_r) = data
         half = (self.METER_W - 1) // 2  # 7px per side
         draw.rectangle([0, 0, self.METER_W - 1, size], fill=self.METER_TRACK)
         for x0, x1, bar, hold in ((0, half - 1, bar_l, hold_l),
