@@ -11,8 +11,11 @@ Built on Pop!_OS with PipeWire 1.6.8 / WirePlumber 0.5.12 and
 
 ![The Mixer page as it appears on the deck](docs/deck-preview.png)
 
-*(music on Media, Chat muted, Game quiet — rendered by the actual plugin code via
-`docs/render_preview.py`)*
+![The Apps page: per-application faders](docs/deck-apps.png)
+
+*(Mixer page: music on Media, Chat muted, Game quiet. Apps page: per-application
+faders with icons, Chrome loud, LM Studio muted. Both rendered by the actual plugin
+code via `docs/render_preview.py`.)*
 
 > This is my personal setup, published as-is in case it's useful — the sink names, deck
 > serial, colors and layout are mine (see [Hardware assumptions](#hardware-assumptions-edit-if-they-change)),
@@ -140,8 +143,6 @@ pixels changed are redrawn (~1.6 ms each, ~10% of one core while audio plays, ~z
 when idle).
 
 ### Apps page (`Apps.json`)
-
-![The Apps page](docs/deck-apps.png)
 
 A per-application mixer: the first four applications currently playing audio each get a
 full fader column — same up/down/mute rows, VU strip and 150% overdrive as the channel
