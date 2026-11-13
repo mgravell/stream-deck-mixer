@@ -9,6 +9,11 @@ and MPRIS media-transport keys.
 Built on Pop!_OS with PipeWire 1.6.8 / WirePlumber 0.5.12 and
 [StreamController](https://github.com/StreamController/StreamController) 1.5.0-beta.16.
 
+![The Mixer page as it appears on the deck](docs/deck-preview.png)
+
+*(music on Media, Chat muted, Game quiet — rendered by the actual plugin code via
+`docs/render_preview.py`)*
+
 > This is my personal setup, published as-is in case it's useful — the sink names, deck
 > serial, colors and layout are mine (see [Hardware assumptions](#hardware-assumptions-edit-if-they-change)),
 > but every piece is plain config/Python and straightforward to adapt. The
