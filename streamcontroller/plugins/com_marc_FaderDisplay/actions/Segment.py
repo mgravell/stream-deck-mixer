@@ -16,11 +16,24 @@ class Segment(ActionCore):
       text:        "none" | "volume" | "label" - bottom-half text content
       label:       text shown when text == "label" (e.g. "Media")
       max-volume:  volume (%) that fills the whole fader (default 100)
+      meter-target: PipeWire node whose live level is drawn as a stereo
+                   VU strip on the left edge (optional)
     """
 
     TRACK = (24, 24, 24, 255)
     MUTED_BRIGHTNESS = 0.35
     CAP = (235, 235, 235, 255)
+
+    # VU meter strip (left edge): two 7px bars (L|R) with a 1px gap
+    METER_W = 15
+    METER_TRACK = (10, 10, 10, 255)
+    METER_GREEN = (60, 205, 90, 255)
+    METER_YELLOW = (235, 200, 60, 255)
+    METER_RED = (240, 70, 55, 255)
+    METER_HOLD = (235, 235, 235, 255)
+    # zone boundaries as column fractions; must match _amp_to_frac in main.py
+    ZONE_12DB = (42 - 12) / 42 * (2 / 3)  # -12 dBFS
+    ZONE_0DB = 2 / 3                      # 0 dBFS (= the 100%-volume line)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -71,6 +84,9 @@ class Segment(ActionCore):
             # fader cap: thin light line marking the level inside this segment
             draw.rectangle([0, size - filled_px - 2, size, size - filled_px], fill=self.CAP)
 
+        if settings.get("meter-target"):
+            self._draw_meter(draw, size, settings.get("meter-target"), lo, hi)
+
         self._draw_glyph(draw, settings.get("glyph", "none"), muted)
         self.set_media(image=img, size=1.0)
 
@@ -83,6 +99,43 @@ class Segment(ActionCore):
             self.set_bottom_label("")
         self.set_top_label("")
         self.set_center_label("")
+
+    def _col_to_px(self, frac: float, lo: float, hi: float, size: int = 96) -> int:
+        """Column fraction -> pixels above this key's bottom edge, clamped."""
+        if hi <= lo:
+            return 0
+        rel = (frac - lo) / (hi - lo)
+        return round(size * max(0.0, min(1.0, rel)))
+
+    def _draw_meter(self, draw: ImageDraw.ImageDraw, size: int, target: str,
+                    lo: float, hi: float):
+        (bar_l, bar_r), (hold_l, hold_r) = self.plugin_base.get_meter_display(target)
+        half = (self.METER_W - 1) // 2  # 7px per side
+        draw.rectangle([0, 0, self.METER_W - 1, size], fill=self.METER_TRACK)
+        for x0, x1, bar, hold in ((0, half - 1, bar_l, hold_l),
+                                  (self.METER_W - half, self.METER_W - 1, bar_r, hold_r)):
+            for z0, z1, color in ((0.0, self.ZONE_12DB, self.METER_GREEN),
+                                  (self.ZONE_12DB, self.ZONE_0DB, self.METER_YELLOW),
+                                  (self.ZONE_0DB, 1.0, self.METER_RED)):
+                top = self._col_to_px(min(bar, z1), lo, hi, size)
+                bottom = self._col_to_px(z0, lo, hi, size)
+                if top > bottom:
+                    draw.rectangle([x0, size - top, x1, size - bottom], fill=color)
+            if hold > 0 and hi > lo and lo < hold <= hi:
+                y = size - self._col_to_px(hold, lo, hi, size)
+                draw.rectangle([x0, max(0, y - 2), x1, min(size, y)], fill=self.METER_HOLD)
+
+    def meter_px(self):
+        """Quantized meter pixels for this key; the display loop re-renders on change."""
+        settings = self.get_settings()
+        target = settings.get("meter-target")
+        if not target:
+            return None
+        lo = float(settings.get("range-low", 0.0))
+        hi = float(settings.get("range-high", 1.0))
+        (bar_l, bar_r), (hold_l, hold_r) = self.plugin_base.get_meter_display(target)
+        return tuple(self._col_to_px(f, lo, hi) // 2
+                     for f in (bar_l, bar_r, hold_l, hold_r))
 
     GLYPH = (240, 240, 240, 255)
     MUTE_X = (255, 70, 60, 255)

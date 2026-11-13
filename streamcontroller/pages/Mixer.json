@@ -31,7 +31,8 @@
                                 "glyph": "up",
                                 "text": "none",
                                 "label": "Media",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "media_channel.out"
                             }
                         }
                     ],
@@ -83,7 +84,8 @@
                                 "glyph": "down",
                                 "text": "volume",
                                 "label": "Media",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "media_channel.out"
                             }
                         }
                     ],
@@ -133,7 +135,8 @@
                                 "glyph": "mute",
                                 "text": "label",
                                 "label": "Media",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "media_channel.out"
                             }
                         }
                     ],
@@ -185,7 +188,8 @@
                                 "glyph": "up",
                                 "text": "none",
                                 "label": "Chat",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "chat_channel.out"
                             }
                         }
                     ],
@@ -237,7 +241,8 @@
                                 "glyph": "down",
                                 "text": "volume",
                                 "label": "Chat",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "chat_channel.out"
                             }
                         }
                     ],
@@ -287,7 +292,8 @@
                                 "glyph": "mute",
                                 "text": "label",
                                 "label": "Chat",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "chat_channel.out"
                             }
                         }
                     ],
@@ -339,7 +345,8 @@
                                 "glyph": "up",
                                 "text": "none",
                                 "label": "Game",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "game_channel.out"
                             }
                         }
                     ],
@@ -391,7 +398,8 @@
                                 "glyph": "down",
                                 "text": "volume",
                                 "label": "Game",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "game_channel.out"
                             }
                         }
                     ],
@@ -441,7 +449,8 @@
                                 "glyph": "mute",
                                 "text": "label",
                                 "label": "Game",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "game_channel.out"
                             }
                         }
                     ],
@@ -493,7 +502,8 @@
                                 "glyph": "up",
                                 "text": "none",
                                 "label": "Master",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
                             }
                         }
                     ],
@@ -537,7 +547,8 @@
                                 "glyph": "down",
                                 "text": "volume",
                                 "label": "Master",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
                             }
                         }
                     ],
@@ -579,7 +590,8 @@
                                 "glyph": "mute",
                                 "text": "label",
                                 "label": "Master",
-                                "max-volume": 150
+                                "max-volume": 150,
+                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
                             }
                         }
                     ],

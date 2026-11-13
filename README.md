@@ -89,7 +89,19 @@ the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals), with
 
 Per-key `Segment` settings: `pulse-name`, `range-low`/`range-high` (this key's slice of
 the fader), `color`, `glyph` (`up`/`down`/`mute`/`none`), `text`
-(`none`/`volume`/`label`), `label`, `max-volume` (150 = overdrive full-scale).
+(`none`/`volume`/`label`), `label`, `max-volume` (150 = overdrive full-scale),
+`meter-target` (PipeWire node for the live VU strip; see below).
+
+### Live VU meters
+
+Each fader column carries a stereo peak meter on its left edge (L|R bars with
+green/yellow/red dB zones and a peak-hold line): the three channels meter their
+**effective output** (post-fader, post-mute — muted means a silent meter), and the
+Master column meters the final G3 mix. Scale: -42 dBFS at the bottom, 0 dBFS on the
+100%-volume line, +6 dB of overdrive headroom in the top third. Display runs at 15 Hz
+with fast-attack/slow-release ballistics and a 1.2 s peak hold; only keys whose meter
+pixels changed are redrawn (~1.6 ms each, ~10% of one core while audio plays, ~zero
+when idle).
 
 ### FaderDisplay plugin
 
@@ -102,6 +114,13 @@ can't talk to MPRIS bus names directly, but it may talk to the Flatpak portal, s
 commands work); a second daemon thread follows `playerctl --follow status` to repaint
 the play/pause glyph on state changes. **Host dependency: `playerctl`**
 (`sudo apt install playerctl`).
+
+**Metering** holds one capture pipe per metered node (8 kHz stereo f32, ~64 KB/s each):
+`flatpak-spawn --host pw-record --target <channel>.out` for the channels and
+`flatpak-spawn --host parec --device=<G3>.monitor` for the master. A reader thread per
+pipe accumulates stereo peaks; one display thread applies ballistics, maps amplitude to
+the fader scale (cubic-volume dB math in `_amp_to_frac`), and re-renders only keys
+whose quantized meter pixels changed.
 
 ## Hard-won gotchas (read before debugging)
 
@@ -121,6 +140,12 @@ the play/pause glyph on state changes. **Host dependency: `playerctl`**
   active. Plugin *code* changes do need a quit/relaunch.
 - **Testing without touching the deck**: `EmulateInput "press" <serial> <page> "x,y"`
   over DBus fires the full action pipeline; coordinates are `"col,row"` from top-left.
+- **Virtual-sink monitors are silent on this PipeWire (1.6.8)**: recording from the
+  `.monitor` of a loopback or null sink yields all-zero samples even while audio flows
+  through it (hardware sink monitors work fine). Meter taps must use the loopback's
+  *output stream node* (`<channel>.out`) via `pw-record --target` instead. Conversely,
+  `pw-record` can't tap a hardware sink's monitor (also silent) — use `parec` for those.
+  Post-fader either way: a muted channel meters as silence.
 - **Key presses reach actions via `EventAssigner`s, and the core never calls
   `create_event_assigners()`** — that's a plugin convention (AudioControl calls it from
   its own base `__init__`). Register assigners from your action's `__init__`
