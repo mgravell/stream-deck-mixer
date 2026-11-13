@@ -9,13 +9,15 @@ and MPRIS media-transport keys.
 Built on Pop!_OS with PipeWire 1.6.8 / WirePlumber 0.5.12 and
 [StreamController](https://github.com/StreamController/StreamController) 1.5.0-beta.16.
 
-![The Mixer page as it appears on the deck](docs/deck-preview.png)
+![The Output page: channel faders](docs/deck-output.png)
 
 ![The Apps page: per-application faders](docs/deck-apps.png)
 
-*(Mixer page: music on Media, Chat muted, Game quiet. Apps page: per-application
-faders with icons, Chrome loud, LM Studio muted. Both rendered by the actual plugin
-code via `docs/render_preview.py`.)*
+![The Input page: microphones and line-ins](docs/deck-input.png)
+
+*(Three pages — Output: music on Media, Chat muted; Apps: per-application faders with
+icons, Chrome loud, LM Studio muted; Input: USB Mic muted. All rendered by the actual
+plugin code via `docs/render_preview.py`.)*
 
 > This is my personal setup, published as-is in case it's useful — the sink names, deck
 > serial, colors and layout are mine (see [Hardware assumptions](#hardware-assumptions-edit-if-they-change)),
@@ -40,10 +42,11 @@ The Stream Deck drives the sink volumes through StreamController with a single c
 plugin, **FaderDisplay** (in this repo) — each column of three keys is one continuous
 vertical fader (bottom key 0–50%, middle 50–100%, top 100–150%), filled in the channel
 color, dimmed to 35% brightness when muted, with chevron/mute glyphs and per-row text.
-Channels are **discovered at runtime** (any sink named `*_channel`), the Master column
-follows the **current default output device**, and a second page mixes individual
-applications — so the page JSON never needs editing when channels, outputs or apps
-change.
+Everything is **discovered at runtime** across three pages — **Output** (any sink named
+`*_channel`, plus a Master column that follows the current default output device),
+**Apps** (whatever is playing audio right now, the default page) and **Input**
+(non-monitor sources: microphones and line-ins) — so the page JSON never needs editing
+when channels, devices or apps change. One utility key cycles the pages.
 
 ## Repo layout
 
@@ -90,7 +93,7 @@ Deliberate choices, commented in the conf:
 - Adding a channel = copy a block, rename `node.description` + both `node.name`s, then
   `systemctl --user restart pipewire pipewire-pulse wireplumber`.
 
-### Stream Deck page (`Mixer.json`)
+### Output page (`Output.json`)
 
 Columns left→right: **three discovered channels / Master / utilities**.
 Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
@@ -120,9 +123,10 @@ plugin decide everything. Edits are picked up within ~10 s, no restart.
 
 The utility column is the same on every page: **play-pause (⏯)** on top (MPRIS, same as
 the keyboard media key; the glyph tracks live playback state and dims grey when no player
-is running), the **page toggle** in the middle (same physical key flips Mixer ↔ Apps),
-and the bottom key is the **channel pager** on the Mixer page / the **app pager** on the
-Apps page.
+is running), the **page key** in the middle (the same physical key cycles
+Output → Apps → Input → Output; its glyph and label show where it goes), and the bottom
+key is that page's **pager**. The deck boots to the Apps page
+(`settings/pages.json` maps the deck serial to the default page).
 Every key carries a single FaderDisplay action: `ChannelSlot` for the fader keys
 (settings: `slot` 0..n or `"master"`, `glyph` `up`/`down`/`mute` — which also picks the
 press behavior — `range-low`/`range-high` for the key's slice of the fader, `text`,
@@ -159,6 +163,14 @@ advertised icon name, its flatpak app-id and process binary, then falls back to 
 match on the app name — flatpak-packaged apps install icons under reverse-DNS names
 (`com.google.Chrome.svg`) that rarely match the advertised icon name.
 
+### Input page (`Input.json`)
+
+The same idea for capture devices: every **non-monitor source** (pavucontrol's "All
+Except Monitors" view — microphones, line-ins) gets a fader column with volume, a
+mic-glyph mute key (red slashed mic when muted) and a live meter tapped straight off
+the source. Labels default to the device description; the config file's `"inputs"` list
+pins order/labels/colors exactly like `"channels"` does. More than four inputs → pager.
+
 ### FaderDisplay plugin
 
 A few hundred lines of Python, seven action types (**Segment**, **ChannelSlot**,
@@ -179,7 +191,8 @@ the play/pause glyph on state changes. **Host dependency: `playerctl`**
 `flatpak-spawn --host parec --device=<G3>.monitor` for the master. A reader thread per
 pipe accumulates stereo peaks; one display thread applies ballistics, maps amplitude to
 the fader scale (cubic-volume dB math in `_amp_to_frac`), and re-renders only keys
-whose quantized meter pixels changed.
+whose quantized meter pixels changed. The capture streams are visible (and named
+"FaderDisplay meter: …") on pavucontrol's Recording tab — that's normal.
 
 ## Hard-won gotchas (read before debugging)
 

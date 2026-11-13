@@ -165,6 +165,29 @@ class Segment(ActionCore):
                 draw.polygon([(cx - 15 + dx, cy - 8 + dy), (cx + 15 + dx, cy - 8 + dy),
                               (cx + dx, cy + 10 + dy)], fill=col or self.GLYPH)
             self._stamp(shape, self.OUTLINE)
+        elif glyph == "mic":
+            # microphone: capsule + cradle; red with a slash when muted
+            body = self.MUTE_X if muted else self.GLYPH
+
+            def capsule(dx, dy, col):
+                draw.rounded_rectangle([cx - 7 + dx, cy - 15 + dy, cx + 7 + dx, cy + 1 + dy],
+                                       radius=7, fill=col or body)
+            self._stamp(capsule, self.OUTLINE)
+
+            def cradle(dx, dy, col):
+                draw.arc([cx - 12 + dx, cy - 8 + dy, cx + 12 + dx, cy + 8 + dy],
+                         0, 180, fill=col or self.GLYPH, width=3)
+                draw.line([(cx + dx, cy + 8 + dy), (cx + dx, cy + 14 + dy)],
+                          fill=col or self.GLYPH, width=3)
+                draw.line([(cx - 7 + dx, cy + 14 + dy), (cx + 7 + dx, cy + 14 + dy)],
+                          fill=col or self.GLYPH, width=3)
+            self._stamp(cradle, self.OUTLINE)
+
+            if muted:
+                def slash(dx, dy, col):
+                    draw.line([(cx - 14 + dx, cy + 13 + dy), (cx + 14 + dx, cy - 13 + dy)],
+                              fill=col or self.MUTE_X, width=4)
+                self._stamp(slash, self.OUTLINE)
         elif glyph == "mute":
             # speaker: box + cone pointing right; red when muted
             body = self.MUTE_X if muted else self.GLYPH

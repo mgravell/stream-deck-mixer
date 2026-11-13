@@ -61,8 +61,10 @@ Segment = _load("Segment").Segment
 MediaKey = _load("MediaKey").MediaKey
 AppSlot = _load("AppSlot").AppSlot
 ChannelSlot = _load("ChannelSlot").ChannelSlot
+SourceSlot = _load("SourceSlot").SourceSlot
 _nav = _load("Nav")
-PageSwitch, AppPager, ChannelPager = _nav.PageSwitch, _nav.AppPager, _nav.ChannelPager
+PageSwitch, AppPager = _nav.PageSwitch, _nav.AppPager
+ChannelPager, SourcePager = _nav.ChannelPager, _nav.SourcePager
 
 # ---- staged scene --------------------------------------------------------
 
@@ -133,6 +135,16 @@ CHANNELS = [  # mirrors the example fader-display.json config
 MASTER = {"name": G3, "label": "Master", "color": (235, 145, 35),
           "meter_target": G3 + ".monitor"}
 
+G3_MIC = "g3_mic"
+SOURCES = [  # Input page scene: G3 mic hot, USB mic muted, line-in quiet
+    {"name": G3_MIC, "label": "G3 Mic", "color": (0, 165, 185), "meter_target": G3_MIC},
+    {"name": "usb_mic", "label": "USB Mic", "color": (150, 90, 220), "meter_target": "usb_mic"},
+    {"name": "line_in", "label": "Line In", "color": (95, 180, 60), "meter_target": "line_in"},
+]
+SOURCE_STATE = {G3_MIC: (100, False), "usb_mic": (100, True), "line_in": (80, False)}
+METERS[G3_MIC] = ((0.52, 0.47), (0.60, 0.55))
+METERS["line_in"] = ((0.22, 0.20), (0.30, 0.27))
+
 plugin_base = SimpleNamespace(
     get_sink_state=SINKS.get,
     get_meter_display=lambda t: METERS.get(t, ((0.0, 0.0), (0.0, 0.0))),
@@ -147,13 +159,18 @@ plugin_base = SimpleNamespace(
     get_master_channel=lambda: MASTER,
     channel_count=lambda: len(CHANNELS),
     channel_offset=0,
+    get_source=lambda slot: SOURCES[slot] if 0 <= slot < len(SOURCES) else None,
+    get_source_state=SOURCE_STATE.get,
+    source_count=lambda: len(SOURCES),
+    source_offset=0,
 )
 
 # ---- render every key through the real action code -----------------------
 
 ACTIONS = {"Segment": Segment, "MediaKey": MediaKey, "AppSlot": AppSlot,
-           "ChannelSlot": ChannelSlot, "PageSwitch": PageSwitch,
-           "AppPager": AppPager, "ChannelPager": ChannelPager}
+           "ChannelSlot": ChannelSlot, "SourceSlot": SourceSlot,
+           "PageSwitch": PageSwitch, "AppPager": AppPager,
+           "ChannelPager": ChannelPager, "SourcePager": SourcePager}
 
 
 def render_key(cls, settings):
@@ -215,5 +232,6 @@ def render_page(page_file, out_file):
     print(f"wrote {out}")
 
 
-render_page("Mixer.json", "deck-preview.png")
+render_page("Output.json", "deck-output.png")
 render_page("Apps.json", "deck-apps.png")
+render_page("Input.json", "deck-input.png")

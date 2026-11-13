@@ -62,12 +62,18 @@ class PageSwitch(_NavBase):
         img = Image.new("RGBA", (size, size), self.BG)
         draw = ImageDraw.Draw(img)
         cx, cy = 48, 38
-        if settings.get("style") == "mixer":
+        style = settings.get("style")
+        if style == "mixer":
             # three mini faders with caps at different heights
             for dx, cap in ((-16, 14), (0, -8), (16, 6)):
                 draw.rectangle([cx + dx - 2, cy - 20, cx + dx + 2, cy + 20], fill=self.DIM)
                 draw.rectangle([cx + dx - 8, cy - cap - 3, cx + dx + 8, cy - cap + 3],
                                fill=self.GLYPH)
+        elif style == "input":
+            # microphone
+            draw.rounded_rectangle([cx - 8, cy - 20, cx + 8, cy + 2], 8, fill=self.GLYPH)
+            draw.arc([cx - 14, cy - 8, cx + 14, cy + 12], 0, 180, fill=self.GLYPH, width=4)
+            draw.line([(cx, cy + 12), (cx, cy + 20)], fill=self.GLYPH, width=4)
         else:
             # 2x2 app grid
             for dx in (-18, 4):
@@ -131,6 +137,37 @@ class AppPager(_NavBase):
             self.set_bottom_label(f"{total} {self._unit(total)}")
         else:
             self.set_bottom_label(self.EMPTY_LABEL)
+
+
+class SourcePager(AppPager):
+    """Advance the Input page to the next group of four input devices."""
+
+    EMPTY_LABEL = "no inputs"
+
+    @staticmethod
+    def _unit(total: int) -> str:
+        return "input" if total == 1 else "inputs"
+
+    def create_event_assigners(self):
+        self.add_event_assigner(EventAssigner(
+            id="source-pager",
+            ui_label="Next Inputs",
+            default_events=[Input.Key.Events.DOWN],
+            callback=self._on_press,
+        ))
+
+    def on_ready(self):
+        self.plugin_base.add_source_pager(self)
+        self.render()
+
+    def on_removed_from_cache(self):
+        self.plugin_base.remove_source_pager(self)
+
+    def _counts(self):
+        return self.plugin_base.source_count(), self.plugin_base.source_offset
+
+    def _on_press(self, event):
+        self.plugin_base.advance_source_page()
 
 
 class ChannelPager(AppPager):

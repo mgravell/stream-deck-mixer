@@ -29,7 +29,8 @@ from .actions.Segment import Segment
 from .actions.MediaKey import MediaKey
 from .actions.AppSlot import AppSlot
 from .actions.ChannelSlot import ChannelSlot
-from .actions.Nav import PageSwitch, AppPager, ChannelPager
+from .actions.SourceSlot import SourceSlot
+from .actions.Nav import PageSwitch, AppPager, ChannelPager, SourcePager
 
 
 def _amp_to_frac(amp: float) -> float:
@@ -86,6 +87,14 @@ class FaderDisplay(PluginBase):
         self._config: dict = {}
         self._config_mtime: float | None = -1.0
 
+        # discovered-input registry (Input page): non-monitor sources
+        self.source_state: dict[str, tuple[int, bool]] = {}  # name -> (volume %, muted)
+        self.sources: list[dict] = []    # ordered; {"name", "label", "color", "meter_target"}
+        self.source_offset = 0
+        self._source_slots: list = []
+        self._source_pagers: list = []
+        self._source_meter_targets: set[str] = set()
+
         # per-application registry (Apps page)
         self.apps: list[dict] = []     # ordered; {"name", "icon_name", "volume", "muted", "inputs"}
         self.app_offset = 0            # paging offset into self.apps
@@ -111,9 +120,11 @@ class FaderDisplay(PluginBase):
 
         for action_base, suffix, name in ((AppSlot, "AppSlot", "App Slot"),
                                           (ChannelSlot, "ChannelSlot", "Channel Slot"),
+                                          (SourceSlot, "SourceSlot", "Input Slot"),
                                           (PageSwitch, "PageSwitch", "Switch Page"),
                                           (AppPager, "AppPager", "Next Apps"),
-                                          (ChannelPager, "ChannelPager", "Next Channels")):
+                                          (ChannelPager, "ChannelPager", "Next Channels"),
+                                          (SourcePager, "SourcePager", "Next Inputs")):
             self.add_action_holder(ActionHolder(
                 plugin_base=self,
                 action_base=action_base,
@@ -357,7 +368,7 @@ class FaderDisplay(PluginBase):
     # Pulse monitoring
 
     def _refresh(self, pulse) -> tuple:
-        """Returns (sinks_changed, apps_changed, channels_changed)."""
+        """Returns (sinks_changed, apps_changed, channels_changed, sources_changed)."""
         state = {}
         for sink in pulse.sink_list():
             volume = round(pulse.volume_get_all_chans(sink) * 100)
@@ -371,6 +382,19 @@ class FaderDisplay(PluginBase):
         except Exception:
             default_sink = None
         channels_changed = self._refresh_channels(default_sink)
+
+        src_state = {}
+        descriptions = {}
+        for source in pulse.source_list():
+            if source.name.endswith(".monitor"):
+                continue  # pavucontrol's "All Except Monitors" view
+            src_state[source.name] = (round(pulse.volume_get_all_chans(source) * 100),
+                                      bool(source.mute))
+            descriptions[source.name] = source.description
+        sources_changed = src_state != self.source_state
+        if sources_changed:
+            self.source_state = src_state
+        sources_changed = self._refresh_sources(descriptions) or sources_changed
 
         groups: dict[str, dict] = {}
         for si in pulse.sink_input_list():
@@ -401,7 +425,110 @@ class FaderDisplay(PluginBase):
                 self.app_offset = 0
             self._app_meter_ids = {str(i) for g in apps for i in g["inputs"]}
             self._sync_meters()
-        return sinks_changed, apps_changed, channels_changed
+        return sinks_changed, apps_changed, channels_changed, sources_changed
+
+    # Input (source) discovery - mirrors channel discovery; the config file's
+    # "inputs" list pins order/labels/colors, anything else is appended
+    # alphabetically with the source's description as its label.
+
+    def _refresh_sources(self, descriptions: dict) -> bool:
+        config = self._load_config()
+        names = set(self.source_state)
+        sources = []
+        used = set()
+        for entry in config.get("inputs", []):
+            name = entry.get("match")
+            if name in names and name not in used:
+                used.add(name)
+                sources.append(self._make_source(name, entry, descriptions))
+        for name in sorted(names - used):
+            sources.append(self._make_source(name, {}, descriptions))
+
+        changed = sources != self.sources
+        if changed:
+            self.sources = sources
+            if self.source_offset >= len(sources):
+                self.source_offset = 0
+            self._source_meter_targets = {s["meter_target"] for s in sources}
+            self._sync_meters()
+        return changed
+
+    @staticmethod
+    def _make_source(name: str, entry: dict, descriptions: dict) -> dict:
+        label = entry.get("label") or descriptions.get(name) or name
+        color = entry.get("color") or AppSlot.app_color(name)
+        return {"name": name, "label": label, "color": tuple(color)[:3],
+                "meter_target": name}
+
+    def get_source(self, slot: int):
+        index = self.source_offset + slot
+        return self.sources[index] if 0 <= index < len(self.sources) else None
+
+    def get_source_state(self, name: str):
+        return self.source_state.get(name)
+
+    def source_count(self) -> int:
+        return len(self.sources)
+
+    def advance_source_page(self) -> None:
+        if len(self.sources) > 4:
+            self.source_offset += 4
+            if self.source_offset >= len(self.sources):
+                self.source_offset = 0
+        else:
+            self.source_offset = 0
+        self._notify_sources()
+
+    def _notify_sources(self) -> None:
+        with self._lock:
+            targets = list(self._source_slots) + list(self._source_pagers)
+        for target in targets:
+            try:
+                target.render()
+            except Exception as e:
+                log.error(f"FaderDisplay: input key render failed: {e}")
+
+    def adjust_source_volume(self, name: str, delta: int) -> None:
+        state = self.source_state.get(name)
+        if state is None:
+            return
+        target = max(0, min(150, state[0] + delta)) / 100
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for source in pulse.source_list():
+                    if source.name == name:
+                        pulse.volume_set_all_chans(source, target)
+        except Exception as e:
+            log.error(f"FaderDisplay: source volume change failed: {e}")
+
+    def toggle_source_mute(self, name: str) -> None:
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for source in pulse.source_list():
+                    if source.name == name:
+                        pulse.source_mute(source.index, not source.mute)
+        except Exception as e:
+            log.error(f"FaderDisplay: source mute toggle failed: {e}")
+
+    def add_source_slot(self, slot) -> None:
+        with self._lock:
+            if slot not in self._source_slots:
+                self._source_slots.append(slot)
+
+    def remove_source_slot(self, slot) -> None:
+        with self._lock:
+            if slot in self._source_slots:
+                self._source_slots.remove(slot)
+
+    def add_source_pager(self, pager) -> None:
+        with self._lock:
+            if pager not in self._source_pagers:
+                self._source_pagers.append(pager)
+
+    def remove_source_pager(self, pager) -> None:
+        with self._lock:
+            if pager in self._source_pagers:
+                self._source_pagers.remove(pager)
 
     # Channel discovery (Mixer page)
     #
@@ -530,13 +657,15 @@ class FaderDisplay(PluginBase):
             log.error(f"FaderDisplay: sink mute toggle failed: {e}")
 
     def _dispatch(self, changes: tuple) -> None:
-        sinks_changed, apps_changed, channels_changed = changes
+        sinks_changed, apps_changed, channels_changed, sources_changed = changes
         if sinks_changed:
             self._notify()
         if apps_changed:
             self._notify_apps()
         if sinks_changed or channels_changed:
             self._notify_channels()
+        if sources_changed:
+            self._notify_sources()
 
     def _notify(self) -> None:
         with self._lock:
@@ -555,7 +684,7 @@ class FaderDisplay(PluginBase):
             try:
                 with pulsectl.Pulse("fader-display-monitor") as pulse:
                     self._dispatch(self._refresh(pulse))
-                    pulse.event_mask_set("sink", "sink_input", "server")
+                    pulse.event_mask_set("sink", "sink_input", "source", "server")
                     pulse.event_callback_set(on_event)
                     while True:
                         pulse.event_listen(timeout=10)
@@ -630,6 +759,7 @@ class FaderDisplay(PluginBase):
                 wanted.add(target)
         wanted |= self._app_meter_ids       # per-app stream taps (numeric node ids)
         wanted |= self._channel_meter_targets  # discovered channels + default sink
+        wanted |= self._source_meter_targets   # discovered inputs (mics, line-ins)
 
         for target in wanted:
             if target not in self._meters:
@@ -657,12 +787,19 @@ class FaderDisplay(PluginBase):
         state = self._meters.get(target)
         if state is None:
             return
+        # name the capture streams so they're identifiable in pavucontrol's
+        # Recording tab instead of showing as "pw-cat unknown input"
         if target.endswith(".monitor"):
             cmd = ["flatpak-spawn", "--host", "parec", f"--device={target}",
+                   "--client-name=FaderDisplay",
+                   f"--stream-name=meter: {target}",
                    "--format=float32le", "--rate=8000", "--channels=2",
                    "--raw", "--latency-msec=50"]
         else:
+            props = ('{ media.name = "FaderDisplay meter: ' + target +
+                     '" application.name = "FaderDisplay" }')
             cmd = ["flatpak-spawn", "--host", "pw-record", "--target", target,
+                   "-P", props,
                    "--format", "f32", "--rate", "8000", "--channels", "2", "-"]
         while state.wanted:
             try:
@@ -716,7 +853,7 @@ class FaderDisplay(PluginBase):
 
             with self._lock:
                 segments = (list(self._segments) + list(self._app_slots)
-                            + list(self._channel_slots))
+                            + list(self._channel_slots) + list(self._source_slots))
             for seg in segments:
                 try:
                     px = seg.meter_px()

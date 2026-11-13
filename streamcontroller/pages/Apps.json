@@ -327,8 +327,8 @@
                         {
                             "id": "com_marc_FaderDisplay::PageSwitch",
                             "settings": {
-                                "page": "Mixer",
-                                "style": "mixer"
+                                "page": "Input",
+                                "style": "input"
                             }
                         }
                     ],
