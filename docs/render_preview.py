@@ -134,7 +134,7 @@ CHANNELS = [  # mirrors the example fader-display.json config
     {"name": "game_channel", "label": "Game", "color": (55, 115, 235),
      "meter_target": "game_channel.out"},
 ]
-MASTER = {"name": G3, "label": "Master", "color": (235, 145, 35),
+MASTER = {"name": G3, "label": "G3", "color": (235, 145, 35),
           "meter_target": G3 + ".monitor", "accent": True}
 
 HDMI, SPDIF, PHONES = "hdmi", "spdif", "phones"

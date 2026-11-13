@@ -10,7 +10,7 @@ class DeviceSlot(ChannelSlot):
 
     Devices are every sink that is not a channel; the default output device is
     listed first and drawn with an accent ring (and takes the config's
-    "master" label/color). Same settings as ChannelSlot, slot 0..3.
+    "master" color, keeping its own label). Same settings as ChannelSlot, slot 0..3.
     """
 
     def create_event_assigners(self):

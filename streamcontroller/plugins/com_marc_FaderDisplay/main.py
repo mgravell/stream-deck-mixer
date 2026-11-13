@@ -397,7 +397,7 @@ class FaderDisplay(PluginBase):
             self.default_source = info.default_source_name
         except Exception:
             pass
-        channels_changed = self._refresh_channels()
+        channels_changed = self._refresh_channels(sink_descriptions)
         devices_changed = self._refresh_devices(sink_descriptions)
 
         src_state = {}
@@ -557,11 +557,11 @@ class FaderDisplay(PluginBase):
     # Channel discovery (Channels page)
     #
     # Channels are sinks whose names end in "_channel", plus anything pinned in
-    # the optional config file, which also sets order, labels and colors:
+    # the optional config file, which also sets order, colors and (optionally)
+    # labels — labels default to the sink description, as pavucontrol shows it:
     #   <data>/settings/fader-display.json
-    #   {"channels": [{"match": "media_channel", "label": "Media",
-    #                  "color": [205, 50, 45]}, ...],
-    #    "master": {"label": "Master", "color": [235, 145, 35]}}
+    #   {"channels": [{"match": "media_channel", "color": [205, 50, 45]}, ...],
+    #    "master": {"color": [235, 145, 35]}}
     # Missing file or entries -> alphabetical order, name-hash colors.
     # The file is re-read when its mtime changes (checked on every refresh).
 
@@ -584,7 +584,7 @@ class FaderDisplay(PluginBase):
                     log.warning(f"FaderDisplay: bad config {path}: {e}")
         return self._config
 
-    def _refresh_channels(self) -> bool:
+    def _refresh_channels(self, descriptions: dict) -> bool:
         config = self._load_config()
         sink_names = set(self.sink_state)
         channels = []
@@ -593,11 +593,11 @@ class FaderDisplay(PluginBase):
             name = entry.get("match")
             if name in sink_names and name not in used:
                 used.add(name)
-                channels.append(self._make_channel(name, entry))
+                channels.append(self._make_channel(name, entry, descriptions))
         for name in sorted(sink_names):
             if name.endswith("_channel") and name not in used:
                 used.add(name)
-                channels.append(self._make_channel(name, {}))
+                channels.append(self._make_channel(name, {}, descriptions))
 
         changed = channels != self.channels
         if changed:
@@ -610,8 +610,8 @@ class FaderDisplay(PluginBase):
 
     # Output-device discovery (Outputs page): every sink that is not a channel.
     # The default device is listed first and drawn with an accent ring; the
-    # config's "master" entry (label/color) applies to whichever device is
-    # default, and an "outputs" list pins order/labels/colors for the rest.
+    # config's "master" color applies to whichever device is default (it keeps
+    # its own label), and an "outputs" list pins order/labels/colors.
     # Only the default device is metered: tapping a sink's monitor keeps the
     # device awake, so metering every output would stop them all suspending.
 
@@ -627,11 +627,12 @@ class FaderDisplay(PluginBase):
         def add(name: str, entry: dict) -> None:
             used.add(name)
             is_default = name == default
-            master_cfg = config.get("master", {}) if is_default else {}
-            label = (master_cfg.get("label") or entry.get("label")
-                     or descriptions.get(name) or name)
-            color = master_cfg.get("color") or entry.get("color") or self.MASTER_COLOR \
-                if is_default else (entry.get("color") or AppSlot.app_color(name))
+            label = entry.get("label") or descriptions.get(name) or name
+            if is_default:
+                color = (config.get("master", {}).get("color")
+                         or entry.get("color") or self.MASTER_COLOR)
+            else:
+                color = entry.get("color") or AppSlot.app_color(name)
             devices.append({
                 "name": name, "label": label, "color": tuple(color)[:3],
                 "meter_target": f"{name}.monitor" if is_default else None,
@@ -711,8 +712,8 @@ class FaderDisplay(PluginBase):
                 self._device_pagers.remove(pager)
 
     @staticmethod
-    def _make_channel(name: str, entry: dict) -> dict:
-        label = entry.get("label") or (
+    def _make_channel(name: str, entry: dict, descriptions: dict) -> dict:
+        label = entry.get("label") or descriptions.get(name) or (
             name[:-len("_channel")] if name.endswith("_channel") else name
         ).replace("_", " ").title()
         color = entry.get("color") or AppSlot.app_color(name)
@@ -722,9 +723,6 @@ class FaderDisplay(PluginBase):
     def get_channel(self, slot: int):
         index = self.channel_offset + slot
         return self.channels[index] if 0 <= index < len(self.channels) else None
-
-    def get_master_channel(self):
-        return self.master_channel
 
     def channel_count(self) -> int:
         return len(self.channels)

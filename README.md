@@ -111,22 +111,29 @@ optional config file
 ```json
 {
   "channels": [
-    {"match": "media_channel", "label": "Media", "color": [205, 50, 45]},
-    {"match": "chat_channel",  "label": "Chat",  "color": [45, 175, 85]},
-    {"match": "game_channel",  "label": "Game",  "color": [55, 115, 235]}
+    {"match": "media_channel", "color": [205, 50, 45]},
+    {"match": "chat_channel",  "color": [45, 175, 85]},
+    {"match": "game_channel",  "color": [55, 115, 235]}
   ],
-  "master": {"label": "Master", "color": [235, 145, 35]}
+  "outputs": [
+    {"match": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo", "label": "G3"}
+  ],
+  "master": {"color": [235, 145, 35]}
 }
 ```
 
 Listed channels come first, in order, with their colors; anything else discovered is
-appended alphabetically with a stable name-hashed color. A `channels` `match` entry
+appended alphabetically with a stable name-hashed color. Labels come from the sink's
+*description* — the same name pavucontrol shows, i.e. the `node.description` in the
+PipeWire config — so a per-entry `"label"` is only needed to override that (as the
+`outputs` entry does for the long-winded G3 device name). A `channels` `match` entry
 accepts **any** sink name, so virtual sinks that don't follow the `*_channel` naming
-convention can still get a column by listing them here. An `"outputs"` list does the
+convention can still get a column by listing them here. The `"outputs"` list does the
 same for the Outputs page (the default device always comes first regardless), and the
-`"master"` entry's label/color apply to **whichever device is currently default** —
-that's why the ringed column reads "Master" in orange. Delete the file (or any field)
-to let the plugin decide everything. Edits are picked up within ~10 s, no restart.
+`"master"` color applies to **whichever device is currently default** — being first,
+ringed and orange marks it as master; it keeps its own name (here shortened to "G3"
+by its `outputs` entry). Delete the file (or any field) to let the plugin decide
+everything. Edits are picked up within ~10 s, no restart.
 
 The utility column is the same on every page: the **page-mode key** on top shows the
 page you are looking at — its glyph and caption name the *current* page, and pressing
@@ -140,7 +147,7 @@ Every key carries a single FaderDisplay action: `ChannelSlot` for the fader keys
 (settings: `slot` 0..n or `"master"`, `glyph` `up`/`down`/`mute` — which also picks the
 press behavior — `range-low`/`range-high` for the key's slice of the fader, `text`,
 `max-volume` 150 = overdrive full-scale), plus `MediaKey` (`media-command`),
-`PageSwitch` (`page`, `style`) and `ChannelPager`/`AppPager` for the utilities. The
+`PageSwitch` (`page`, `style`, `label`) and a per-page pager for the utilities. The
 `Segment` action (a fixed-sink version of `ChannelSlot`, with explicit `pulse-name`,
 `color`, `label` and `meter-target` settings) remains available for hand-built pages.
 
@@ -149,7 +156,7 @@ press behavior — `range-low`/`range-high` for the key's slice of the fader, `t
 Each fader column carries a stereo peak meter on its left edge (L|R bars with
 green/yellow/red dB zones and a peak-hold line): the three channels meter their
 **effective output** (post-fader, post-mute — muted means a silent meter), and the
-Master column meters the final G3 mix. Scale: -42 dBFS at the bottom, 0 dBFS on the
+default device's column meters the final mix. Scale: -42 dBFS at the bottom, 0 dBFS on the
 100%-volume line, +6 dB of overdrive headroom in the top third. Display runs at 15 Hz
 with fast-attack/slow-release ballistics and a 1.2 s peak hold; only keys whose meter
 pixels changed are redrawn (~1.6 ms each, ~10% of one core while audio plays, ~zero
