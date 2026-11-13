@@ -5,51 +5,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "media_channel",
-                                "use-standard": false,
-                                "nick": "Media",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": 10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "media_channel",
-                                "range-low": 0.6667,
-                                "range-high": 1.0,
-                                "color": [
-                                    205,
-                                    50,
-                                    45
-                                ],
+                                "slot": 0,
                                 "glyph": "up",
                                 "text": "none",
-                                "label": "Media",
-                                "max-volume": 150,
-                                "meter-target": "media_channel.out"
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            150,
-                            25,
-                            25,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -58,51 +30,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "media_channel",
-                                "use-standard": false,
-                                "nick": "Media",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": -10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "media_channel",
-                                "range-low": 0.3333,
-                                "range-high": 0.6667,
-                                "color": [
-                                    205,
-                                    50,
-                                    45
-                                ],
+                                "slot": 0,
                                 "glyph": "down",
                                 "text": "volume",
-                                "label": "Media",
-                                "max-volume": 150,
-                                "meter-target": "media_channel.out"
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            150,
-                            25,
-                            25,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -111,49 +55,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::Mute",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "media_channel",
-                                "use-standard": false,
-                                "nick": "Media",
-                                "show-info": true,
-                                "info-content": "volume"
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "media_channel",
-                                "range-low": 0.0,
-                                "range-high": 0.3333,
-                                "color": [
-                                    205,
-                                    50,
-                                    45
-                                ],
+                                "slot": 0,
                                 "glyph": "mute",
                                 "text": "label",
-                                "label": "Media",
-                                "max-volume": 150,
-                                "meter-target": "media_channel.out"
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            150,
-                            25,
-                            25,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -162,51 +80,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "chat_channel",
-                                "use-standard": false,
-                                "nick": "Chat",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": 10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "chat_channel",
-                                "range-low": 0.6667,
-                                "range-high": 1.0,
-                                "color": [
-                                    45,
-                                    175,
-                                    85
-                                ],
+                                "slot": 1,
                                 "glyph": "up",
                                 "text": "none",
-                                "label": "Chat",
-                                "max-volume": 150,
-                                "meter-target": "chat_channel.out"
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            20,
-                            120,
-                            50,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -215,51 +105,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "chat_channel",
-                                "use-standard": false,
-                                "nick": "Chat",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": -10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "chat_channel",
-                                "range-low": 0.3333,
-                                "range-high": 0.6667,
-                                "color": [
-                                    45,
-                                    175,
-                                    85
-                                ],
+                                "slot": 1,
                                 "glyph": "down",
                                 "text": "volume",
-                                "label": "Chat",
-                                "max-volume": 150,
-                                "meter-target": "chat_channel.out"
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            20,
-                            120,
-                            50,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -268,49 +130,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::Mute",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "chat_channel",
-                                "use-standard": false,
-                                "nick": "Chat",
-                                "show-info": true,
-                                "info-content": "volume"
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "chat_channel",
-                                "range-low": 0.0,
-                                "range-high": 0.3333,
-                                "color": [
-                                    45,
-                                    175,
-                                    85
-                                ],
+                                "slot": 1,
                                 "glyph": "mute",
                                 "text": "label",
-                                "label": "Chat",
-                                "max-volume": 150,
-                                "meter-target": "chat_channel.out"
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            20,
-                            120,
-                            50,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -319,51 +155,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "game_channel",
-                                "use-standard": false,
-                                "nick": "Game",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": 10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "game_channel",
-                                "range-low": 0.6667,
-                                "range-high": 1.0,
-                                "color": [
-                                    55,
-                                    115,
-                                    235
-                                ],
+                                "slot": 2,
                                 "glyph": "up",
                                 "text": "none",
-                                "label": "Game",
-                                "max-volume": 150,
-                                "meter-target": "game_channel.out"
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            25,
-                            70,
-                            170,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -372,51 +180,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "game_channel",
-                                "use-standard": false,
-                                "nick": "Game",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": -10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "game_channel",
-                                "range-low": 0.3333,
-                                "range-high": 0.6667,
-                                "color": [
-                                    55,
-                                    115,
-                                    235
-                                ],
+                                "slot": 2,
                                 "glyph": "down",
                                 "text": "volume",
-                                "label": "Game",
-                                "max-volume": 150,
-                                "meter-target": "game_channel.out"
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            25,
-                            70,
-                            170,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -425,49 +205,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::Mute",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "game_channel",
-                                "use-standard": false,
-                                "nick": "Game",
-                                "show-info": true,
-                                "info-content": "volume"
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "game_channel",
-                                "range-low": 0.0,
-                                "range-high": 0.3333,
-                                "color": [
-                                    55,
-                                    115,
-                                    235
-                                ],
+                                "slot": 2,
                                 "glyph": "mute",
                                 "text": "label",
-                                "label": "Game",
-                                "max-volume": 150,
-                                "meter-target": "game_channel.out"
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1,
-                    "background": {
-                        "color": [
-                            25,
-                            70,
-                            170,
-                            255
-                        ]
-                    }
+                    "image-control-action": 0
                 }
             }
         },
@@ -476,43 +230,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "use-standard": false,
-                                "nick": "Master",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": 10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "range-low": 0.6667,
-                                "range-high": 1.0,
-                                "color": [
-                                    235,
-                                    145,
-                                    35
-                                ],
+                                "slot": "master",
                                 "glyph": "up",
                                 "text": "none",
-                                "label": "Master",
-                                "max-volume": 150,
-                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
+                                "range-low": 0.6667,
+                                "range-high": 1.0,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1
+                    "image-control-action": 0
                 }
             }
         },
@@ -521,43 +255,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::AdjustVolume",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "use-standard": false,
-                                "nick": "Master",
-                                "show-info": true,
-                                "info-content": "volume",
-                                "volume-adjust": -10,
-                                "volume-bounds": 150
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "range-low": 0.3333,
-                                "range-high": 0.6667,
-                                "color": [
-                                    235,
-                                    145,
-                                    35
-                                ],
+                                "slot": "master",
                                 "glyph": "down",
                                 "text": "volume",
-                                "label": "Master",
-                                "max-volume": 150,
-                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
+                                "range-low": 0.3333,
+                                "range-high": 0.6667,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1
+                    "image-control-action": 0
                 }
             }
         },
@@ -566,41 +280,23 @@
                 "0": {
                     "actions": [
                         {
-                            "id": "com_gapls_AudioControl::Mute",
+                            "id": "com_marc_FaderDisplay::ChannelSlot",
                             "settings": {
-                                "device-filter": "sink",
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "use-standard": false,
-                                "nick": "Master",
-                                "show-info": true,
-                                "info-content": "volume"
-                            }
-                        },
-                        {
-                            "id": "com_marc_FaderDisplay::Segment",
-                            "settings": {
-                                "pulse-name": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo",
-                                "range-low": 0.0,
-                                "range-high": 0.3333,
-                                "color": [
-                                    235,
-                                    145,
-                                    35
-                                ],
+                                "slot": "master",
                                 "glyph": "mute",
                                 "text": "label",
-                                "label": "Master",
-                                "max-volume": 150,
-                                "meter-target": "alsa_output.usb-Creative_Technology_Ltd_Sound_Blaster_G3_CC08F2F2C2F3E386-03.analog-stereo.monitor"
+                                "range-low": 0.0,
+                                "range-high": 0.3333,
+                                "max-volume": 150
                             }
                         }
                     ],
                     "label-control-actions": [
-                        1,
-                        1,
-                        1
+                        0,
+                        0,
+                        0
                     ],
-                    "image-control-action": 1
+                    "image-control-action": 0
                 }
             }
         },
@@ -634,6 +330,24 @@
                                 "page": "Apps",
                                 "style": "apps"
                             }
+                        }
+                    ],
+                    "label-control-actions": [
+                        0,
+                        0,
+                        0
+                    ],
+                    "image-control-action": 0
+                }
+            }
+        },
+        "4x2": {
+            "states": {
+                "0": {
+                    "actions": [
+                        {
+                            "id": "com_marc_FaderDisplay::ChannelPager",
+                            "settings": {}
                         }
                     ],
                     "label-control-actions": [

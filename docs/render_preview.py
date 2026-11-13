@@ -60,8 +60,9 @@ def _load(modname):
 Segment = _load("Segment").Segment
 MediaKey = _load("MediaKey").MediaKey
 AppSlot = _load("AppSlot").AppSlot
+ChannelSlot = _load("ChannelSlot").ChannelSlot
 _nav = _load("Nav")
-PageSwitch, AppPager = _nav.PageSwitch, _nav.AppPager
+PageSwitch, AppPager, ChannelPager = _nav.PageSwitch, _nav.AppPager, _nav.ChannelPager
 
 # ---- staged scene --------------------------------------------------------
 
@@ -121,6 +122,17 @@ def load_icon(path):
 
 ICONS = {name: load_icon(path) for name, path in ICON_FILES.items()}
 
+CHANNELS = [  # mirrors the example fader-display.json config
+    {"name": "media_channel", "label": "Media", "color": (205, 50, 45),
+     "meter_target": "media_channel.out"},
+    {"name": "chat_channel", "label": "Chat", "color": (45, 175, 85),
+     "meter_target": "chat_channel.out"},
+    {"name": "game_channel", "label": "Game", "color": (55, 115, 235),
+     "meter_target": "game_channel.out"},
+]
+MASTER = {"name": G3, "label": "Master", "color": (235, 145, 35),
+          "meter_target": G3 + ".monitor"}
+
 plugin_base = SimpleNamespace(
     get_sink_state=SINKS.get,
     get_meter_display=lambda t: METERS.get(t, ((0.0, 0.0), (0.0, 0.0))),
@@ -131,12 +143,17 @@ plugin_base = SimpleNamespace(
     get_app=lambda slot: APPS[slot] if 0 <= slot < len(APPS) else None,
     get_app_meter_display=lambda app: app["_meter"],
     get_app_icon=lambda app: ICONS.get(app["name"]),
+    get_channel=lambda slot: CHANNELS[slot] if 0 <= slot < len(CHANNELS) else None,
+    get_master_channel=lambda: MASTER,
+    channel_count=lambda: len(CHANNELS),
+    channel_offset=0,
 )
 
 # ---- render every key through the real action code -----------------------
 
 ACTIONS = {"Segment": Segment, "MediaKey": MediaKey, "AppSlot": AppSlot,
-           "PageSwitch": PageSwitch, "AppPager": AppPager}
+           "ChannelSlot": ChannelSlot, "PageSwitch": PageSwitch,
+           "AppPager": AppPager, "ChannelPager": ChannelPager}
 
 
 def render_key(cls, settings):

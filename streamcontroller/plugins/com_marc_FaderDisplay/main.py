@@ -7,6 +7,7 @@ whenever a watched sink's volume or mute state changes, every registered
 Segment action re-renders its slice of the fader.
 """
 
+import json
 import math
 import os
 import subprocess
@@ -17,6 +18,8 @@ from array import array
 import pulsectl
 from loguru import logger as log
 
+import globals as gl
+
 from src.backend.PluginManager.PluginBase import PluginBase
 from src.backend.PluginManager.ActionHolder import ActionHolder
 from src.backend.PluginManager.ActionInputSupport import ActionInputSupport
@@ -25,7 +28,8 @@ from src.backend.DeckManagement.InputIdentifier import Input
 from .actions.Segment import Segment
 from .actions.MediaKey import MediaKey
 from .actions.AppSlot import AppSlot
-from .actions.Nav import PageSwitch, AppPager
+from .actions.ChannelSlot import ChannelSlot
+from .actions.Nav import PageSwitch, AppPager, ChannelPager
 
 
 def _amp_to_frac(amp: float) -> float:
@@ -72,6 +76,16 @@ class FaderDisplay(PluginBase):
         self.meter_display: dict[str, tuple] = {}
         self._meter_display_started = False
 
+        # discovered-channel registry (Mixer page)
+        self.channels: list[dict] = []   # ordered; {"name", "label", "color", "meter_target"}
+        self.master_channel: dict | None = None
+        self.channel_offset = 0
+        self._channel_slots: list = []
+        self._channel_pagers: list = []
+        self._channel_meter_targets: set[str] = set()
+        self._config: dict = {}
+        self._config_mtime: float | None = -1.0
+
         # per-application registry (Apps page)
         self.apps: list[dict] = []     # ordered; {"name", "icon_name", "volume", "muted", "inputs"}
         self.app_offset = 0            # paging offset into self.apps
@@ -96,8 +110,10 @@ class FaderDisplay(PluginBase):
         self.add_action_holder(self.segment_holder)
 
         for action_base, suffix, name in ((AppSlot, "AppSlot", "App Slot"),
+                                          (ChannelSlot, "ChannelSlot", "Channel Slot"),
                                           (PageSwitch, "PageSwitch", "Switch Page"),
-                                          (AppPager, "AppPager", "Next Apps")):
+                                          (AppPager, "AppPager", "Next Apps"),
+                                          (ChannelPager, "ChannelPager", "Next Channels")):
             self.add_action_holder(ActionHolder(
                 plugin_base=self,
                 action_base=action_base,
@@ -174,6 +190,26 @@ class FaderDisplay(PluginBase):
         with self._lock:
             if pager in self._pagers:
                 self._pagers.remove(pager)
+
+    def add_channel_slot(self, slot) -> None:
+        with self._lock:
+            if slot not in self._channel_slots:
+                self._channel_slots.append(slot)
+
+    def remove_channel_slot(self, slot) -> None:
+        with self._lock:
+            if slot in self._channel_slots:
+                self._channel_slots.remove(slot)
+
+    def add_channel_pager(self, pager) -> None:
+        with self._lock:
+            if pager not in self._channel_pagers:
+                self._channel_pagers.append(pager)
+
+    def remove_channel_pager(self, pager) -> None:
+        with self._lock:
+            if pager in self._channel_pagers:
+                self._channel_pagers.remove(pager)
 
     # Application registry (Apps page)
 
@@ -321,7 +357,7 @@ class FaderDisplay(PluginBase):
     # Pulse monitoring
 
     def _refresh(self, pulse) -> tuple:
-        """Returns (sinks_changed, apps_changed)."""
+        """Returns (sinks_changed, apps_changed, channels_changed)."""
         state = {}
         for sink in pulse.sink_list():
             volume = round(pulse.volume_get_all_chans(sink) * 100)
@@ -329,6 +365,12 @@ class FaderDisplay(PluginBase):
         sinks_changed = state != self.sink_state
         if sinks_changed:
             self.sink_state = state
+
+        try:
+            default_sink = pulse.server_info().default_sink_name
+        except Exception:
+            default_sink = None
+        channels_changed = self._refresh_channels(default_sink)
 
         groups: dict[str, dict] = {}
         for si in pulse.sink_input_list():
@@ -359,7 +401,142 @@ class FaderDisplay(PluginBase):
                 self.app_offset = 0
             self._app_meter_ids = {str(i) for g in apps for i in g["inputs"]}
             self._sync_meters()
-        return sinks_changed, apps_changed
+        return sinks_changed, apps_changed, channels_changed
+
+    # Channel discovery (Mixer page)
+    #
+    # Channels are sinks whose names end in "_channel", plus anything pinned in
+    # the optional config file, which also sets order, labels and colors:
+    #   <data>/settings/fader-display.json
+    #   {"channels": [{"match": "media_channel", "label": "Media",
+    #                  "color": [205, 50, 45]}, ...],
+    #    "master": {"label": "Master", "color": [235, 145, 35]}}
+    # Missing file or entries -> alphabetical order, name-hash colors.
+    # The file is re-read when its mtime changes (checked on every refresh).
+
+    MASTER_COLOR = (235, 145, 35)
+
+    def _load_config(self) -> dict:
+        path = os.path.join(gl.DATA_PATH, "settings", "fader-display.json")
+        try:
+            mtime = os.stat(path).st_mtime
+        except OSError:
+            mtime = None
+        if mtime != self._config_mtime:
+            self._config_mtime = mtime
+            self._config = {}
+            if mtime is not None:
+                try:
+                    with open(path) as f:
+                        self._config = json.load(f) or {}
+                except Exception as e:
+                    log.warning(f"FaderDisplay: bad config {path}: {e}")
+        return self._config
+
+    def _refresh_channels(self, default_sink: str | None) -> bool:
+        config = self._load_config()
+        sink_names = set(self.sink_state)
+        channels = []
+        used = set()
+        for entry in config.get("channels", []):
+            name = entry.get("match")
+            if name in sink_names and name not in used:
+                used.add(name)
+                channels.append(self._make_channel(name, entry))
+        for name in sorted(sink_names):
+            if name.endswith("_channel") and name not in used:
+                used.add(name)
+                channels.append(self._make_channel(name, {}))
+
+        master = None
+        if default_sink and default_sink in sink_names:
+            master_cfg = config.get("master", {})
+            master = {
+                "name": default_sink,
+                "label": master_cfg.get("label", "Master"),
+                "color": tuple(master_cfg.get("color", self.MASTER_COLOR))[:3],
+                "meter_target": f"{default_sink}.monitor",
+            }
+
+        changed = channels != self.channels or master != self.master_channel
+        if changed:
+            self.channels = channels
+            self.master_channel = master
+            if self.channel_offset >= len(channels):
+                self.channel_offset = 0
+            self._channel_meter_targets = {c["meter_target"] for c in channels}
+            if master:
+                self._channel_meter_targets.add(master["meter_target"])
+            self._sync_meters()
+        return changed
+
+    @staticmethod
+    def _make_channel(name: str, entry: dict) -> dict:
+        label = entry.get("label") or (
+            name[:-len("_channel")] if name.endswith("_channel") else name
+        ).replace("_", " ").title()
+        color = entry.get("color") or AppSlot.app_color(name)
+        return {"name": name, "label": label, "color": tuple(color)[:3],
+                "meter_target": f"{name}.out"}
+
+    def get_channel(self, slot: int):
+        index = self.channel_offset + slot
+        return self.channels[index] if 0 <= index < len(self.channels) else None
+
+    def get_master_channel(self):
+        return self.master_channel
+
+    def channel_count(self) -> int:
+        return len(self.channels)
+
+    def advance_channel_page(self) -> None:
+        if len(self.channels) > 3:
+            self.channel_offset += 3
+            if self.channel_offset >= len(self.channels):
+                self.channel_offset = 0
+        else:
+            self.channel_offset = 0
+        self._notify_channels()
+
+    def _notify_channels(self) -> None:
+        with self._lock:
+            targets = list(self._channel_slots) + list(self._channel_pagers)
+        for target in targets:
+            try:
+                target.render()
+            except Exception as e:
+                log.error(f"FaderDisplay: channel key render failed: {e}")
+
+    def adjust_sink_volume(self, name: str, delta: int) -> None:
+        state = self.sink_state.get(name)
+        if state is None:
+            return
+        target = max(0, min(150, state[0] + delta)) / 100
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for sink in pulse.sink_list():
+                    if sink.name == name:
+                        pulse.volume_set_all_chans(sink, target)
+        except Exception as e:
+            log.error(f"FaderDisplay: sink volume change failed: {e}")
+
+    def toggle_sink_mute(self, name: str) -> None:
+        try:
+            with pulsectl.Pulse("fader-display-cmd") as pulse:
+                for sink in pulse.sink_list():
+                    if sink.name == name:
+                        pulse.sink_mute(sink.index, not sink.mute)
+        except Exception as e:
+            log.error(f"FaderDisplay: sink mute toggle failed: {e}")
+
+    def _dispatch(self, changes: tuple) -> None:
+        sinks_changed, apps_changed, channels_changed = changes
+        if sinks_changed:
+            self._notify()
+        if apps_changed:
+            self._notify_apps()
+        if sinks_changed or channels_changed:
+            self._notify_channels()
 
     def _notify(self) -> None:
         with self._lock:
@@ -377,20 +554,12 @@ class FaderDisplay(PluginBase):
         while True:
             try:
                 with pulsectl.Pulse("fader-display-monitor") as pulse:
-                    sinks_changed, apps_changed = self._refresh(pulse)
-                    if sinks_changed:
-                        self._notify()
-                    if apps_changed:
-                        self._notify_apps()
-                    pulse.event_mask_set("sink", "sink_input")
+                    self._dispatch(self._refresh(pulse))
+                    pulse.event_mask_set("sink", "sink_input", "server")
                     pulse.event_callback_set(on_event)
                     while True:
                         pulse.event_listen(timeout=10)
-                        sinks_changed, apps_changed = self._refresh(pulse)
-                        if sinks_changed:
-                            self._notify()
-                        if apps_changed:
-                            self._notify_apps()
+                        self._dispatch(self._refresh(pulse))
             except Exception as e:
                 log.warning(f"FaderDisplay: pulse monitor reconnecting: {e}")
                 time.sleep(3)
@@ -459,7 +628,8 @@ class FaderDisplay(PluginBase):
                 target = None
             if target:
                 wanted.add(target)
-        wanted |= self._app_meter_ids  # per-app stream taps (numeric node ids)
+        wanted |= self._app_meter_ids       # per-app stream taps (numeric node ids)
+        wanted |= self._channel_meter_targets  # discovered channels + default sink
 
         for target in wanted:
             if target not in self._meters:
@@ -545,7 +715,8 @@ class FaderDisplay(PluginBase):
                 self.meter_display[target] = (tuple(bars), tuple(holds))
 
             with self._lock:
-                segments = list(self._segments) + list(self._app_slots)
+                segments = (list(self._segments) + list(self._app_slots)
+                            + list(self._channel_slots))
             for seg in segments:
                 try:
                     px = seg.meter_px()

@@ -28,6 +28,9 @@ cp streamcontroller/pages/*.json "$DATA/pages/"
 rm -rf "$DATA/plugins/com_marc_FaderDisplay"
 cp -r streamcontroller/plugins/com_marc_FaderDisplay "$DATA/plugins/"
 
+echo "==> Channel order/colors config (optional; delete for automatic)"
+cp streamcontroller/settings/fader-display.json "$DATA/settings/"
+
 echo "==> Default-page mapping (merged, other decks preserved)"
 python3 - "$DATA" <<'PY'
 import json, os, sys
@@ -44,10 +47,8 @@ PY
 
 cat <<'EOF'
 
-Done. Remaining manual steps:
-  1. Launch StreamController, open its Store, install "Audio Control" (by G4PLS),
-     then quit it cleanly (tray -> Quit) and relaunch.
-  2. Route each app to its channel once in pavucontrol (Playback tab).
+Done. Remaining manual step:
+  Route each app to its channel once in pavucontrol (Playback tab).
 
 If using a different Stream Deck, update the serial in:
   ~/.var/app/com.core447.StreamController/data/settings/pages.json

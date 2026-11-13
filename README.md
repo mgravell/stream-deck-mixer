@@ -33,12 +33,14 @@ virtual sinks: media_channel / chat_channel / game_channel   (PipeWire loopbacks
 Sound Blaster G3 sink = master fader
 ```
 
-The Stream Deck drives the sink volumes through StreamController with two plugins per
-key: **Audio Control** (G4PLS, from the in-app store) does volume/mute, and
-**FaderDisplay** (custom, in this repo) renders the visuals — each column of three keys
-is one continuous vertical fader (bottom key 0–50%, middle 50–100%, top 100–150%),
-filled in the channel color, dimmed to 35% brightness when muted, with chevron/mute
-glyphs and per-row text.
+The Stream Deck drives the sink volumes through StreamController with a single custom
+plugin, **FaderDisplay** (in this repo) — each column of three keys is one continuous
+vertical fader (bottom key 0–50%, middle 50–100%, top 100–150%), filled in the channel
+color, dimmed to 35% brightness when muted, with chevron/mute glyphs and per-row text.
+Channels are **discovered at runtime** (any sink named `*_channel`), the Master column
+follows the **current default output device**, and a second page mixes individual
+applications — so the page JSON never needs editing when channels, outputs or apps
+change.
 
 ## Repo layout
 
@@ -47,6 +49,7 @@ glyphs and per-row text.
 | `pipewire/10-virtual-channels.conf` | `~/.config/pipewire/pipewire.conf.d/` |
 | `streamcontroller/pages/Mixer.json` | `~/.var/app/com.core447.StreamController/data/pages/` |
 | `streamcontroller/settings/pages.json` | `~/.var/app/com.core447.StreamController/data/settings/` (maps deck serial → default page) |
+| `streamcontroller/settings/fader-display.json` | same place (optional: channel order/labels/colors; delete it for automatic) |
 | `streamcontroller/plugins/com_marc_FaderDisplay/` | `~/.var/app/com.core447.StreamController/data/plugins/` |
 
 ## Restore from scratch
@@ -55,12 +58,8 @@ glyphs and per-row text.
 ./restore.sh
 ```
 
-Then two manual steps:
-
-1. In StreamController: ☰ menu → **Store** → install **Audio Control** (by G4PLS),
-   then quit (tray → Quit) and relaunch.
-2. Route each app to its channel once in `pavucontrol` (Playback tab) — WirePlumber
-   remembers it from then on.
+Then one manual step: route each app to its channel once in `pavucontrol` (Playback
+tab) — WirePlumber remembers it from then on.
 
 ### Hardware assumptions (edit if they change)
 
@@ -90,22 +89,42 @@ Deliberate choices, commented in the conf:
 
 ### Stream Deck page (`Mixer.json`)
 
-Columns left→right: **Media (red) / Chat (green) / Game (blue) / Master (orange) / utilities**.
+Columns left→right: **three discovered channels / Master / utilities**.
 Fader rows top→bottom: **+10% (▲) / −10% (▼, shows volume) / mute (speaker, shows name)**.
+
+Channel columns are *discovered*: every sink named `*_channel` gets one, and Master is
+whatever the current **default output device** is (it follows default-device changes
+live). With more than three channels, the pager key cycles them. Order, labels and
+colors come from the optional config file
+`~/.var/app/com.core447.StreamController/data/settings/fader-display.json`:
+
+```json
+{
+  "channels": [
+    {"match": "media_channel", "label": "Media", "color": [205, 50, 45]},
+    {"match": "chat_channel",  "label": "Chat",  "color": [45, 175, 85]},
+    {"match": "game_channel",  "label": "Game",  "color": [55, 115, 235]}
+  ],
+  "master": {"label": "Master", "color": [235, 145, 35]}
+}
+```
+
+Listed channels come first, in order, with their colors; anything else discovered is
+appended alphabetically with a stable name-hashed color. Delete the file (or any field)
+to let the plugin decide everything. Edits are picked up within ~10 s, no restart.
+
 The utility column is the same on every page: **play-pause (⏯)** on top (MPRIS, same as
 the keyboard media key; the glyph tracks live playback state and dims grey when no player
 is running), the **page toggle** in the middle (same physical key flips Mixer ↔ Apps),
-and the bottom key is spare on the Mixer page / the **app pager** on the Apps page.
-Every fader key carries two actions: `com_gapls_AudioControl::AdjustVolume|Mute`
-(index 0, the behavior) and `com_marc_FaderDisplay::Segment` (index 1, the visuals),
-with `image-control-action: 1` and `label-control-actions: [1,1,1]`. Media keys carry a
-single `com_marc_FaderDisplay::MediaKey` action with a `media-command` setting
-(`play-pause`/`previous`/`next`).
-
-Per-key `Segment` settings: `pulse-name`, `range-low`/`range-high` (this key's slice of
-the fader), `color`, `glyph` (`up`/`down`/`mute`/`none`), `text`
-(`none`/`volume`/`label`), `label`, `max-volume` (150 = overdrive full-scale),
-`meter-target` (PipeWire node for the live VU strip; see below).
+and the bottom key is the **channel pager** on the Mixer page / the **app pager** on the
+Apps page.
+Every key carries a single FaderDisplay action: `ChannelSlot` for the fader keys
+(settings: `slot` 0..n or `"master"`, `glyph` `up`/`down`/`mute` — which also picks the
+press behavior — `range-low`/`range-high` for the key's slice of the fader, `text`,
+`max-volume` 150 = overdrive full-scale), plus `MediaKey` (`media-command`),
+`PageSwitch` (`page`, `style`) and `ChannelPager`/`AppPager` for the utilities. The
+`Segment` action (a fixed-sink version of `ChannelSlot`, with explicit `pulse-name`,
+`color`, `label` and `meter-target` settings) remains available for hand-built pages.
 
 ### Live VU meters
 
@@ -139,11 +158,12 @@ match on the app name — flatpak-packaged apps install icons under reverse-DNS 
 
 ### FaderDisplay plugin
 
-A few hundred lines of Python, five action types (**Segment**, **MediaKey**,
-**AppSlot**, **PageSwitch**, **AppPager**). **Segment**: one daemon thread holds a
-`pulsectl` connection listening for sink *and sink-input* events; on any change it
-re-renders every registered key (PIL-drawn 96×96 bitmaps) and keeps the per-application
-registry that drives the Apps page. Volume text and labels are StreamController
+A few hundred lines of Python, seven action types (**Segment**, **ChannelSlot**,
+**AppSlot**, **MediaKey**, **PageSwitch**, **ChannelPager**, **AppPager**) — no other
+plugins needed: volume and mute are set directly through `pulsectl`. One daemon thread
+holds a `pulsectl` connection listening for sink, sink-input and server events; on any
+change it rebuilds the channel and application registries and re-renders every
+registered key (PIL-drawn 96×96 bitmaps). Volume text and labels are StreamController
 labels, so they render with the app's font stack on top of the bitmap. **MediaKey**:
 presses run `flatpak-spawn --host playerctl <play-pause|previous|next>` (the sandbox
 can't talk to MPRIS bus names directly, but it may talk to the Flatpak portal, so host

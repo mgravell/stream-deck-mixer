@@ -83,6 +83,13 @@ class PageSwitch(_NavBase):
 class AppPager(_NavBase):
     """Advance the Apps page to the next group of four applications."""
 
+    PER_PAGE = 4
+    EMPTY_LABEL = "no audio"
+
+    @staticmethod
+    def _unit(total: int) -> str:
+        return "app" if total == 1 else "apps"
+
     def create_event_assigners(self):
         self.add_event_assigner(EventAssigner(
             id="app-pager",
@@ -98,14 +105,15 @@ class AppPager(_NavBase):
     def on_removed_from_cache(self):
         self.plugin_base.remove_pager(self)
 
+    def _counts(self):
+        return self.plugin_base.app_count(), self.plugin_base.app_offset
+
     def _on_press(self, event):
         self.plugin_base.advance_app_page()
 
     def render(self):
-        total = self.plugin_base.app_count()
-        offset = self.plugin_base.app_offset
-        active = total > 4
-        color = self.GLYPH if active else self.DIM
+        total, offset = self._counts()
+        color = self.GLYPH if total > self.PER_PAGE else self.DIM
 
         size = 96
         img = Image.new("RGBA", (size, size), self.BG)
@@ -117,9 +125,41 @@ class AppPager(_NavBase):
         self.set_media(image=img, size=1.0)
         self.set_top_label("")
         self.set_center_label("")
-        if total:
-            first = offset + 1
-            last = min(offset + 4, total)
-            self.set_bottom_label(f"{first}-{last}/{total}" if total > 4 else f"{total} app{'s' if total != 1 else ''}")
+        if total > self.PER_PAGE:
+            self.set_bottom_label(f"{offset + 1}-{min(offset + self.PER_PAGE, total)}/{total}")
+        elif total:
+            self.set_bottom_label(f"{total} {self._unit(total)}")
         else:
-            self.set_bottom_label("no audio")
+            self.set_bottom_label(self.EMPTY_LABEL)
+
+
+class ChannelPager(AppPager):
+    """Advance the Mixer page to the next group of three channels."""
+
+    PER_PAGE = 3
+    EMPTY_LABEL = "no channels"
+
+    @staticmethod
+    def _unit(total: int) -> str:
+        return "ch"
+
+    def create_event_assigners(self):
+        self.add_event_assigner(EventAssigner(
+            id="channel-pager",
+            ui_label="Next Channels",
+            default_events=[Input.Key.Events.DOWN],
+            callback=self._on_press,
+        ))
+
+    def on_ready(self):
+        self.plugin_base.add_channel_pager(self)
+        self.render()
+
+    def on_removed_from_cache(self):
+        self.plugin_base.remove_channel_pager(self)
+
+    def _counts(self):
+        return self.plugin_base.channel_count(), self.plugin_base.channel_offset
+
+    def _on_press(self, event):
+        self.plugin_base.advance_channel_page()

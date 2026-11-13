@@ -1,0 +1,39 @@
+{
+    "channels": [
+        {
+            "match": "media_channel",
+            "label": "Media",
+            "color": [
+                205,
+                50,
+                45
+            ]
+        },
+        {
+            "match": "chat_channel",
+            "label": "Chat",
+            "color": [
+                45,
+                175,
+                85
+            ]
+        },
+        {
+            "match": "game_channel",
+            "label": "Game",
+            "color": [
+                55,
+                115,
+                235
+            ]
+        }
+    ],
+    "master": {
+        "label": "Master",
+        "color": [
+            235,
+            145,
+            35
+        ]
+    }
+}
