@@ -110,8 +110,10 @@ colors come from the optional config file
 ```
 
 Listed channels come first, in order, with their colors; anything else discovered is
-appended alphabetically with a stable name-hashed color. Delete the file (or any field)
-to let the plugin decide everything. Edits are picked up within ~10 s, no restart.
+appended alphabetically with a stable name-hashed color. A `match` entry accepts **any**
+sink name, so virtual sinks that don't follow the `*_channel` naming convention can
+still get a column by listing them here. Delete the file (or any field) to let the
+plugin decide everything. Edits are picked up within ~10 s, no restart.
 
 The utility column is the same on every page: **play-pause (⏯)** on top (MPRIS, same as
 the keyboard media key; the glyph tracks live playback state and dims grey when no player
