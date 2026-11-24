@@ -1,0 +1,27 @@
+{
+  "Name": "FaderDisplay",
+  "Version": "1.0.0.0",
+  "Author": "Marc Gravell",
+  "Description": "Software audio mixer: per-app, output-device and input-device fader columns with live VU meters. Put the Mixer Key action on every key; the layout follows each key's position.",
+  "URL": "https://github.com/mgravell/stream-deck-mixer",
+  "UUID": "com.marc.faderdisplay",
+  "Icon": "imgs/plugin",
+  "Category": "FaderDisplay",
+  "CategoryIcon": "imgs/category",
+  "CodePathWin": "bin/FaderDisplay.exe",
+  "SDKVersion": 2,
+  "Software": { "MinimumVersion": "6.4" },
+  "OS": [{ "Platform": "windows", "MinimumVersion": "10" }],
+  "Actions": [
+    {
+      "UUID": "com.marc.faderdisplay.key",
+      "Name": "Mixer Key",
+      "Tooltip": "One key of the mixer. Its role (fader up/down/mute, page, pager, play/pause) comes from where it sits on the deck.",
+      "Icon": "imgs/action",
+      "Controllers": ["Keypad"],
+      "SupportedInMultiActions": false,
+      "UserTitleEnabled": false,
+      "States": [{ "Image": "imgs/key", "ShowTitle": false }]
+    }
+  ]
+}

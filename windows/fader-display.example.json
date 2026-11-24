@@ -1,0 +1,13 @@
+{
+  // Copy to %APPDATA%\FaderDisplay\fader-display.json; every field is optional.
+  // "match" is a device's full name as Sound settings shows it ("Speakers (Sound Blaster G3)"),
+  // its short endpoint name ("Speakers") or its endpoint ID. Edits apply within a second.
+  "outputs": [
+    {"match": "Speakers (Sound Blaster G3)", "label": "G3"},
+    {"match": "Headset (Sound Blaster G3)", "label": "Phones", "color": [55, 115, 235]}
+  ],
+  "inputs": [
+    {"match": "Microphone (Sound Blaster G3)", "label": "Mic", "color": [45, 175, 85]}
+  ],
+  "master": {"color": [235, 145, 35]}
+}
