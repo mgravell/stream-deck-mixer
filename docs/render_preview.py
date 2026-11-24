@@ -21,8 +21,8 @@ from types import SimpleNamespace
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLUGIN = os.path.join(ROOT, "streamcontroller", "plugins", "com_marc_FaderDisplay")
-PAGES = os.path.join(ROOT, "streamcontroller", "pages")
+PLUGIN = os.path.join(ROOT, "linux", "streamcontroller", "plugins", "com_marc_FaderDisplay")
+PAGES = os.path.join(ROOT, "linux", "streamcontroller", "pages")
 
 # ---- stub the StreamController framework the actions import --------------
 
